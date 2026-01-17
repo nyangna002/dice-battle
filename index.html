@@ -48,12 +48,12 @@ button:disabled{opacity:.4;cursor:not-allowed;}
   <div class="hp"><div id="hpB"></div></div>
 
   <button id="attack">🎲 공격</button>
-  <button id="restart" style="display:none">재시작</button>
+  <button id="restart" style="display:none" 재시작</button>
   <button id="copySummary">📋 전투 결과 요약 복사</button>
 
   <ul id="logs"></ul>
 
-  <!-- 느와르 카드 -->
+  <!-- 카드 -->
   <div id="noirCard" class="noir-card">
     <div class="noir-title">BATTLE REPORT</div>
     <div class="noir-body">
@@ -210,7 +210,7 @@ btnAttack.onclick = async ()=>{
 
   if(s.players[attacker].bleeding){
     updates[`players/${attacker}/hp`]=s.players[attacker].hp-2;
-    logs.push(`🩸 ${myName}, 출혈로 체력을 잃었다 (-2)`);
+    logs.push(`🩸 ${myName}, 출혈로 체력 감소 (-2)`);
   }
 
   const dice=Math.floor(Math.random()*20)+1;
@@ -233,7 +233,7 @@ btnAttack.onclick = async ()=>{
     const part = BODY_PARTS[Math.floor(Math.random()*BODY_PARTS.length)];
     updates.status="finished";
     updates.winner=mySide;
-    updates.logs=[...logs,`🏆 ${myName} 승리`,`💥 ${targetName}, ${part}에 부상을 입었습니다.`];
+    updates.logs=[...logs,`🏆 ${myName} 승리`,`💥 ${targetName}, ${part} 부위에 부상을 입었다.`];
 
     showNoirCard({winnerName:myName,loserName:targetName,injuryPart:part});
   }
@@ -252,7 +252,7 @@ btnRestart.onclick = async ()=>{
     turn:"A",
     status:"playing",
     winner:null,
-    logs:["🔁 새로운 교전이 시작되었다"]
+    logs:["전투 재시작"]
   });
 };
 
