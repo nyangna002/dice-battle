@@ -18,6 +18,9 @@ button {
   font-size: 16px;
   margin: 6px 0;
 }
+button:disabled {
+  opacity: 0.4;
+}
 input {
   padding: 8px;
   font-size: 16px;
@@ -40,7 +43,6 @@ input {
 </head>
 
 <body>
-<!-- 로비 -->
 <div id="lobby">
   <h2>🎲 Dice Battle</h2>
   <button id="create">방 만들기</button><br><br>
@@ -48,7 +50,6 @@ input {
   <button id="join">입장</button>
 </div>
 
-<!-- 방 -->
 <div id="room" style="display:none">
   <h3>방 코드: <span id="roomCode"></span></h3>
   <p>내 플레이어: <b id="me"></b></p>
@@ -80,16 +81,18 @@ const firebaseConfig = {
   authDomain: "dice-7fe9a.firebaseapp.com",
   databaseURL: "https://dice-7fe9a-default-rtdb.firebaseio.com",
   projectId: "dice-7fe9a"
-};
+}
 
 const app = initializeApp(firebaseConfig);
 const db = getDatabase(app);
 
-/* 상태 */
-let mySide = null;
-let myName = null;
+/* URL */
 const qs = new URLSearchParams(location.search);
 const roomId = qs.get("room");
+
+/* localStorage 복원 */
+let myName = localStorage.getItem("diceName");
+let mySide = localStorage.getItem("diceSide");
 
 /* DOM */
 const lobby = document.getElementById("lobby");
@@ -134,6 +137,10 @@ btnCreate.onclick = async () => {
     logs: []
   });
 
+  localStorage.setItem("diceName", myName);
+  localStorage.setItem("diceSide", mySide);
+  localStorage.setItem("diceRoom", code);
+
   location.search = `?room=${code}`;
 };
 
@@ -173,14 +180,26 @@ btnJoin.onclick = async () => {
     hp: 30
   });
 
+  localStorage.setItem("diceName", myName);
+  localStorage.setItem("diceSide", mySide);
+  localStorage.setItem("diceRoom", code);
+
   location.search = `?room=${code}`;
 };
 
-/* 방 구독 */
+/* 방 화면 */
 if (roomId) {
   lobby.style.display = "none";
   room.style.display = "block";
   document.getElementById("roomCode").innerText = roomId;
+
+  if (localStorage.getItem("diceRoom") !== roomId) {
+    localStorage.removeItem("diceName");
+    localStorage.removeItem("diceSide");
+    myName = null;
+    mySide = null;
+    localStorage.setItem("diceRoom", roomId);
+  }
 
   const roomRef = ref(db, `rooms/${roomId}`);
 
@@ -188,7 +207,6 @@ if (roomId) {
     const s = snap.val();
     if (!s) return;
 
-    /* 역할 복원 */
     if (!mySide && myName) {
       if (s.players.A?.name === myName) mySide = "A";
       if (s.players.B?.name === myName) mySide = "B";
@@ -215,8 +233,7 @@ if (roomId) {
       !s.players.B;
 
     logsEl.innerHTML = "";
-    const logList = s.logs || [];
-    logList.forEach(l => {
+    (s.logs || []).forEach(l => {
       const li = document.createElement("li");
       li.className = "log";
       li.innerText = l;
@@ -224,7 +241,6 @@ if (roomId) {
     });
   });
 
-  /* 공격 */
   btnAttack.onclick = async () => {
     const snap = await get(roomRef);
     const s = snap.val();
