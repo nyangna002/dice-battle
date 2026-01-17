@@ -139,6 +139,17 @@ btnJoin.onclick = async () => {
     return;
   }
 
+  const data = snap.val();
+
+if (
+  data.players.A?.name === myName ||
+  data.players.B?.name === myName
+) {
+  alert("이미 사용 중인 이름입니다");
+  return;
+}
+
+
   myName = prompt("이름 입력");
   if (!myName) return;
 
