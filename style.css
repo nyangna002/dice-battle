@@ -1,0 +1,30 @@
+body{background:#121212;color:#eee;font-family:"Noto Serif KR", serif;padding:20px;}
+input, button{padding:8px;margin:4px;font-size:14px;}
+button:disabled{opacity:.4;cursor:not-allowed;}
+.hp{height:18px;background:#333;margin-bottom:10px;}
+.hp>div{height:100%;transition:.3s;}
+.status{font-size:14px;opacity:.85;}
+.noir-card{
+  width:320px;
+  background:#0f0f0f;
+  border:2px solid #333;
+  padding:18px;
+  color:#e0e0e0;
+  box-shadow:0 0 25px rgba(0,0,0,0.9);
+  margin-top:20px;
+  box-sizing:border-box;
+}
+.noir-title{font-size:14px;letter-spacing:2px;color:#888;border-bottom:1px solid #333;padding-bottom:6px;margin-bottom:12px;}
+.noir-body p{font-size:14px;line-height:1.6;margin:0 0 10px 0;}
+.noir-footer{display:flex;justify-content:space-between;font-size:11px;color:#666;border-top:1px solid #333;padding-top:8px;margin-top:12px;}
+@media screen and (max-width:480px){
+  body{padding:10px;}
+  input, button{padding:6px;font-size:12px;margin:3px;}
+  .noir-card{width:90%;padding:12px;font-size:13px;border:2px solid #333;box-shadow:0 0 25px rgba(0,0,0,0.9);}
+  .noir-title{font-size:12px;}
+  .noir-body p{font-size:12px;line-height:1.4;}
+  .noir-footer{font-size:10px;}
+  #logs{max-height:200px;overflow-y:auto;}
+  .hp{height:14px;}
+  #attack, #restart, #copySummary{font-size:12px;padding:6px;}
+}
