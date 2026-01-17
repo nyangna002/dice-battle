@@ -7,82 +7,40 @@
 
 <style>
 body {
-  margin: 0;
-  padding: 20px;
-  background: #111;
-  color: #eee;
-  font-family: system-ui, sans-serif;
+  background:#111;
+  color:#eee;
+  font-family:system-ui;
+  padding:20px;
 }
-button {
-  padding: 10px 14px;
-  font-size: 16px;
-  margin: 6px 0;
-}
-button:disabled {
-  opacity: 0.4;
-}
-input {
-  padding: 8px;
-  font-size: 16px;
-}
-.hp {
-  width: 100%;
-  height: 18px;
-  background: #333;
-  margin-bottom: 10px;
-}
-.hp > div {
-  height: 100%;
-  transition: width 0.3s;
-}
-.log {
-  font-size: 14px;
-  opacity: 0.9;
-}
-#restart {
-  display: none;
-  margin-top: 10px;
-  background: #444;
-}
+button { padding:10px; font-size:16px; }
+button:disabled { opacity:.4; }
+.hp { height:18px; background:#333; margin-bottom:10px; }
+.hp > div { height:100%; transition:.3s; }
 </style>
 </head>
 
 <body>
-<div id="lobby">
-  <h2>🎲 Dice Battle</h2>
-  <button id="create">방 만들기</button><br><br>
-  <input id="code" placeholder="방 코드">
-  <button id="join">입장</button>
-</div>
-
-<div id="room" style="display:none">
-  <h3>방 코드: <span id="roomCode"></span></h3>
+<div id="room">
   <p>내 플레이어: <b id="me"></b></p>
   <p>턴: <b id="turn"></b></p>
 
-  <div>
-    <b id="nameA"></b>
-    <div class="hp"><div id="hpA"></div></div>
-  </div>
+  <b id="nameA"></b>
+  <div class="hp"><div id="hpA"></div></div>
 
-  <div>
-    <b id="nameB"></b>
-    <div class="hp"><div id="hpB"></div></div>
-  </div>
+  <b id="nameB"></b>
+  <div class="hp"><div id="hpB"></div></div>
 
   <button id="attack">🎲 공격</button>
-  <button id="restart">🔁 재시작</button>
+  <button id="restart" style="display:none">🔁 재시작</button>
 
   <ul id="logs"></ul>
 </div>
 
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-app.js";
-import {
-  getDatabase, ref, get, set, update, onValue
-} from "https://www.gstatic.com/firebasejs/10.7.0/firebase-database.js";
+import { getDatabase, ref, get, update, onValue } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-database.js";
 
-/* 🔥 Firebase 설정 */
+/* Firebase */
 const firebaseConfig = {
   apiKey: "AIzaSyB5DBFCeHAy0ZhM3ITwu4MklaGqtqv9vhU",
   authDomain: "dice-7fe9a.firebaseapp.com",
@@ -93,185 +51,98 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const db = getDatabase(app);
 
-/* 커스터마이즈 문장 */
-const TEXT = {
-  attack: (attacker, target, dice) =>
-    `⚔️ ${attacker}의 공격! (${dice} 데미지)`,
-  win: winner =>
-    `🏆 전투 종료! ${winner}의 승리!`,
-  restart: "🔁 전투가 다시 시작되었습니다"
-};
-
-/* URL */
-const qs = new URLSearchParams(location.search);
-const roomId = qs.get("room");
-
-/* localStorage */
-let myName = localStorage.getItem("diceName");
-let mySide = localStorage.getItem("diceSide");
+/* 상태 */
+const roomId = new URLSearchParams(location.search).get("room");
+const roomRef = ref(db, `rooms/${roomId}`);
+const mySide = localStorage.getItem("diceSide");
+const myName = localStorage.getItem("diceName");
 
 /* DOM */
-const lobby = document.getElementById("lobby");
-const room = document.getElementById("room");
-const btnCreate = document.getElementById("create");
-const btnJoin = document.getElementById("join");
-const btnAttack = document.getElementById("attack");
-const btnRestart = document.getElementById("restart");
-
+const meEl = document.getElementById("me");
+const turnEl = document.getElementById("turn");
 const nameA = document.getElementById("nameA");
 const nameB = document.getElementById("nameB");
 const hpA = document.getElementById("hpA");
 const hpB = document.getElementById("hpB");
-const turnEl = document.getElementById("turn");
-const meEl = document.getElementById("me");
+const btnAttack = document.getElementById("attack");
+const btnRestart = document.getElementById("restart");
 const logsEl = document.getElementById("logs");
 
-/* 유틸 */
-function makeCode() {
-  return Math.random().toString(36).substring(2, 6).toUpperCase();
-}
-function hpColor(hp) {
-  if (hp > 20) return "#2ecc71";
-  if (hp > 10) return "#f1c40f";
-  return "#e74c3c";
-}
+meEl.innerText = mySide;
 
-/* 방 만들기 */
-btnCreate.onclick = async () => {
-  myName = prompt("이름 입력");
-  if (!myName) return;
+/* 색 */
+const hpColor = hp =>
+  hp > 20 ? "#2ecc71" : hp > 10 ? "#f1c40f" : "#e74c3c";
 
-  const code = makeCode();
-  mySide = "A";
+/* 실시간 반영 */
+onValue(roomRef, snap => {
+  const s = snap.val();
+  if (!s) return;
 
-  await set(ref(db, `rooms/${code}`), {
+  turnEl.innerText = s.turn;
+
+  nameA.innerText = s.players.A.name;
+  nameB.innerText = s.players.B.name;
+
+  hpA.style.width = (s.players.A.hp / 30 * 100) + "%";
+  hpA.style.background = hpColor(s.players.A.hp);
+  hpB.style.width = (s.players.B.hp / 30 * 100) + "%";
+  hpB.style.background = hpColor(s.players.B.hp);
+
+  btnAttack.disabled =
+    s.status !== "playing" || s.turn !== mySide;
+
+  btnRestart.style.display =
+    s.status === "finished" ? "block" : "none";
+
+  logsEl.innerHTML = "";
+  (s.logs || []).forEach(l => {
+    const li = document.createElement("li");
+    li.innerText = l;
+    logsEl.appendChild(li);
+  });
+});
+
+/* 공격 (🔥 핵심 수정됨) */
+btnAttack.onclick = async () => {
+  const snap = await get(roomRef);
+  const s = snap.val();
+  if (!s || s.status !== "playing" || s.turn !== mySide) return;
+
+  const target = mySide === "A" ? "B" : "A";
+  const dice = Math.floor(Math.random() * 20) + 1;
+  const newHp = s.players[target].hp - dice;
+
+  const logs = [...(s.logs || []),
+    `⚔️ ${myName}의 공격! (${dice})`
+  ];
+
+  const updates = {
+    [`players/${target}/hp`]: newHp,
+    turn: target,
+    logs
+  };
+
+  if (newHp <= 0) {
+    updates.status = "finished";
+    updates.logs = [...logs, `🏆 ${myName} 승리!`];
+  }
+
+  await update(roomRef, updates);
+};
+
+/* 재시작 */
+btnRestart.onclick = async () => {
+  await update(roomRef, {
     players: {
-      A: { name: myName, hp: 30 },
-      B: null
+      A: { name: nameA.innerText, hp: 30 },
+      B: { name: nameB.innerText, hp: 30 }
     },
     turn: "A",
     status: "playing",
-    logs: []
+    logs: ["🔁 전투 재시작"]
   });
-
-  localStorage.setItem("diceName", myName);
-  localStorage.setItem("diceSide", mySide);
-  localStorage.setItem("diceRoom", code);
-
-  location.search = `?room=${code}`;
 };
-
-/* 방 입장 */
-btnJoin.onclick = async () => {
-  const code = document.getElementById("code").value.trim().toUpperCase();
-  if (!code) return;
-
-  const snap = await get(ref(db, `rooms/${code}`));
-  if (!snap.exists()) {
-    alert("방이 없습니다");
-    return;
-  }
-
-  myName = prompt("이름 입력");
-  if (!myName) return;
-
-  const data = snap.val();
-  if (data.players.B) {
-    alert("방이 가득 찼습니다");
-    return;
-  }
-
-  mySide = "B";
-  await update(ref(db, `rooms/${code}/players/B`), {
-    name: myName,
-    hp: 30
-  });
-
-  localStorage.setItem("diceName", myName);
-  localStorage.setItem("diceSide", mySide);
-  localStorage.setItem("diceRoom", code);
-
-  location.search = `?room=${code}`;
-};
-
-/* 방 화면 */
-if (roomId) {
-  lobby.style.display = "none";
-  room.style.display = "block";
-  document.getElementById("roomCode").innerText = roomId;
-
-  const roomRef = ref(db, `rooms/${roomId}`);
-
-  onValue(roomRef, snap => {
-    const s = snap.val();
-    if (!s) return;
-
-    meEl.innerText = mySide || "?";
-    turnEl.innerText = s.turn;
-
-    nameA.innerText = s.players.A?.name || "대기 중";
-    nameB.innerText = s.players.B?.name || "대기 중";
-
-    hpA.style.width = (s.players.A.hp / 30 * 100) + "%";
-    hpA.style.background = hpColor(s.players.A.hp);
-    hpB.style.width = (s.players.B.hp / 30 * 100) + "%";
-    hpB.style.background = hpColor(s.players.B.hp);
-
-    btnAttack.disabled =
-      s.status !== "playing" ||
-      s.turn !== mySide;
-
-    btnRestart.style.display =
-      s.status === "finished" ? "block" : "none";
-
-    logsEl.innerHTML = "";
-    s.logs.forEach(l => {
-      const li = document.createElement("li");
-      li.className = "log";
-      li.innerText = l;
-      logsEl.appendChild(li);
-    });
-  });
-
-  btnAttack.onclick = async () => {
-    const snap = await get(roomRef);
-    const s = snap.val();
-    if (!s || s.turn !== mySide) return;
-
-    const target = mySide === "A" ? "B" : "A";
-    const dice = Math.floor(Math.random() * 20) + 1;
-    const newHp = s.players[target].hp - dice;
-
-    let logs = [...s.logs,
-      TEXT.attack(myName, s.players[target].name, dice)
-    ];
-
-    const updates = {
-      [`players/${target}/hp`]: newHp,
-      turn: target,
-      logs
-    };
-
-    if (newHp <= 0) {
-      updates.status = "finished";
-      updates.logs = [...logs, TEXT.win(myName)];
-    }
-
-    await update(roomRef, updates);
-  };
-
-  btnRestart.onclick = async () => {
-    await update(roomRef, {
-      players: {
-        A: { name: nameA.innerText, hp: 30 },
-        B: { name: nameB.innerText, hp: 30 }
-      },
-      turn: "A",
-      status: "playing",
-      logs: [TEXT.restart]
-    });
-  };
-}
 </script>
 </body>
 </html>
