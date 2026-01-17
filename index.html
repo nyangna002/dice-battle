@@ -5,9 +5,8 @@
 <title>Dice Battle - Noir Edition</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-<script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
-
 <style>
+/* 기본 스타일 */
 body{background:#121212;color:#eee;font-family:"Noto Serif KR", serif;padding:20px;}
 input, button{padding:8px;margin:4px;font-size:14px;}
 button:disabled{opacity:.4;cursor:not-allowed;}
@@ -15,36 +14,33 @@ button:disabled{opacity:.4;cursor:not-allowed;}
 .hp>div{height:100%;transition:.3s;}
 .status{font-size:14px;opacity:.85;}
 #copySummary{display:none;background:#2c3e50;padding:6px;margin-top:6px;cursor:pointer;}
-/* 카드 기본 스타일 유지 */
+
+/* 카드 */
 .noir-card{
-  width:320px; /* 데스크톱 기준 */
+  width:320px;
   background:#0f0f0f;
-  border:1px solid #333;
+  border:2px solid #333;
   padding:18px;
   color:#e0e0e0;
   box-shadow:0 0 25px rgba(0,0,0,0.9);
   margin-top:20px;
   box-sizing:border-box;
 }
+.noir-title{font-size:14px;letter-spacing:2px;color:#888;border-bottom:1px solid #333;padding-bottom:6px;margin-bottom:12px;}
+.noir-body p{font-size:14px;line-height:1.6;margin:0 0 10px 0;}
+.noir-footer{display:flex;justify-content:space-between;font-size:11px;color:#666;border-top:1px solid #333;padding-top:8px;margin-top:12px;}
 
 /* 모바일 최적화 */
 @media screen and (max-width:480px){
-  .noir-card{
-    width:80%;       /* 화면 폭의 90% */
-    padding:12px;    /* 내부 여백 축소 */
-    font-size:13px;  /* 글자 크기 조정 */
-  }
-  .noir-title{font-size:12px;}
-  .noir-body p{font-size:12px;line-height:1.4;}
-  .noir-footer{font-size:10px;}
-}
-
-
-/* 모바일 최적화 */
-@media screen and (max-width: 480px) {
   body{padding:10px;}
   input, button{padding:6px;font-size:12px;margin:3px;}
-  .noir-card{width:100%;padding:12px;font-size:13px;}
+  .noir-card{
+    width:90%;
+    padding:12px;
+    font-size:13px;
+    border:2px solid #333;
+    box-shadow:0 0 20px rgba(0,0,0,0.9);
+  }
   .noir-title{font-size:12px;}
   .noir-body p{font-size:12px;line-height:1.4;}
   .noir-footer{font-size:10px;}
@@ -52,7 +48,6 @@ button:disabled{opacity:.4;cursor:not-allowed;}
   .hp{height:14px;}
   #attack, #restart, #copySummary{font-size:12px;padding:6px;}
 }
-
 </style>
 </head>
 <body>
@@ -82,19 +77,16 @@ button:disabled{opacity:.4;cursor:not-allowed;}
 
   <ul id="logs"></ul>
 
-<div id="noirCard" class="noir-card">
-  <div class="noir-title">BATTLE REPORT</div>
-  <div class="noir-body">
-    <p id="noirSummary"></p>
-    <p id="noirInjury"></p>
-  </div>
-  <div class="noir-footer">
-    <span id="noirWinner"></span>
-    <span id="noirDate"></span>
-  </div>
-  <!-- PNG 버튼 제거 -->
-</div>
-
+  <div id="noirCard" class="noir-card">
+    <div class="noir-title">BATTLE REPORT</div>
+    <div class="noir-body">
+      <p id="noirSummary"></p>
+      <p id="noirInjury"></p>
+    </div>
+    <div class="noir-footer">
+      <span id="noirWinner"></span>
+      <span id="noirDate"></span>
+    </div>
   </div>
 </div>
 
@@ -136,7 +128,7 @@ const btnRestart=document.getElementById("restart");
 const btnSummary=document.getElementById("copySummary");
 const logsEl=document.getElementById("logs");
 
-/* ---------------- URL 입장 기능 ---------------- */
+/* URL 입장 */
 let urlRoomId = new URLSearchParams(location.search).get("room");
 if(urlRoomId){
     roomId = urlRoomId;
@@ -144,7 +136,7 @@ if(urlRoomId){
     joinRoom(roomId,myName);
 }
 
-/* ---------------- joinRoom ---------------- */
+/* joinRoom */
 async function joinRoom(roomId,myName){
     const roomRef=ref(db,`rooms/${roomId}`);
     const snap=await get(roomRef);
@@ -171,7 +163,7 @@ async function joinRoom(roomId,myName){
     initBattle();
 }
 
-/* ---------------- 방 만들기 버튼 ---------------- */
+/* 방 만들기 */
 createRoomBtn.onclick=async()=>{
     roomId=roomInput.value.trim();
     if(!roomId)return alert("방 이름 입력!");
@@ -212,14 +204,13 @@ createRoomBtn.onclick=async()=>{
     initBattle();
 };
 
-/* ---------------- 전투 초기화 ---------------- */
+/* 전투 초기화 */
 function initBattle(){
     const roomRef=ref(db,`rooms/${roomId}`);
     onValue(roomRef,snap=>{
         const s=snap.val(); if(!s)return;
 
         turnEl.innerText=s.turn;
-
         nameA.innerText=s.players.A.name;
         nameB.innerText=s.players.B.name;
 
@@ -242,7 +233,7 @@ function initBattle(){
     });
 }
 
-/* ---------------- 공격 ---------------- */
+/* 공격 */
 btnAttack.onclick=async()=>{
     const roomRef=ref(db,`rooms/${roomId}`);
     const snap=await get(roomRef); const s=snap.val();
@@ -282,7 +273,7 @@ btnAttack.onclick=async()=>{
     await update(roomRef,updates);
 };
 
-/* ---------------- 재시작 ---------------- */
+/* 재시작 */
 btnRestart.onclick=async()=>{
     const roomRef=ref(db,`rooms/${roomId}`);
     await update(roomRef,{
@@ -297,7 +288,7 @@ btnRestart.onclick=async()=>{
     });
 };
 
-/* ---------------- 전투 결과 요약 ---------------- */
+/* 전투 결과 요약 */
 btnSummary.onclick=async()=>{
     const roomRef=ref(db,`rooms/${roomId}`);
     const snap=await get(roomRef); const s=snap.val();
@@ -316,7 +307,7 @@ ${injury}`.trim();
     alert("복사되었습니다");
 };
 
-/* ---------------- 느와르 카드 ---------------- */
+/* 느와르 카드 표시 */
 function showNoirCard({winnerName,loserName,injuryPart}){
     document.getElementById("noirSummary").innerText=
         `${winnerName}, ${loserName} 제압 성공.`;
@@ -324,17 +315,6 @@ function showNoirCard({winnerName,loserName,injuryPart}){
         `${loserName}, ${injuryPart}에 부상을 입고 전투 종료.`;
     document.getElementById("noirWinner").innerText=`WINNER: ${winnerName}`;
     document.getElementById("noirDate").innerText=new Date().toLocaleDateString();
-}
-
-/* ---------------- PNG 저장 ---------------- */
-function saveAsPNG(){
-    const card=document.getElementById("noirCard");
-    html2canvas(card,{backgroundColor:"#0f0f0f"}).then(canvas=>{
-        const link=document.createElement("a");
-        link.download="battle_report.png";
-        link.href=canvas.toDataURL();
-        link.click();
-    });
 }
 </script>
 </body>
