@@ -2,7 +2,7 @@
 <html lang="ko">
 <head>
     <meta charset="UTF-8">
-    <title>Dice Battle - Mobile Optimized</title>
+    <title>Dice Battle - Noir Edition</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <style>
         body { background:#121212; color:#eee; font-family:"Noto Serif KR", serif; padding:15px; margin:0; display:flex; flex-direction:column; align-items:center; touch-action: manipulation; }
@@ -53,7 +53,8 @@
         <div class="hp-bar"><div id="hpB" class="hp-fill"></div></div>
 
         <button id="attackBtn" disabled style="background:#8e44ad; font-weight:bold; font-size: 18px;">🎲 공격하기</button>
-        <button id="restartBtn" style="display:none; background:#34495e;">전장 이탈 (초기화)</button>
+        
+        <button id="restartBtn" style="display:none; background:#34495e;">전투 초기화 및 재시작</button>
         <button id="copyBtn" style="display:none; background:#27ae60;">📋 결과 요약 복사</button>
 
         <ul id="logs"></ul>
@@ -74,7 +75,8 @@
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-app.js";
     import { getDatabase, ref, set, get, update, onValue } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-database.js";
 
-    const firebaseConfig = {
+    // 1. Firebase 설정을 여기에 입력하세요
+const firebaseConfig = {
   apiKey: "AIzaSyB5DBFCeHAy0ZhM3ITwu4MklaGqtqv9vhU",
   authDomain: "dice-7fe9a.firebaseapp.com",
   databaseURL: "https://dice-7fe9a-default-rtdb.firebaseio.com",
@@ -85,7 +87,7 @@
     const db = getDatabase(app);
 
     let roomId = "", mySide = "", myName = "";
-    let isProcessing = false; // 중복 클릭 방지 플래그
+    let isProcessing = false; 
 
     const setupUI = document.getElementById("setupUI");
     const gameUI = document.getElementById("gameUI");
@@ -126,7 +128,7 @@
         gameUI.style.display = "block";
         document.getElementById("roomDisplay").innerText = "ROOM: " + roomId;
         document.getElementById("meDisplay").innerText = myName;
-        document.getElementById("mySideDisplay").innerText = mySide === 'A' ? '(호스트)' : '(게스트)';
+        document.getElementById("mySideDisplay").innerText = mySide === 'A' ? '(HOST)' : '(GUEST)';
         
         onValue(ref(db, `rooms/${roomId}`), (snapshot) => {
             const data = snapshot.val();
@@ -150,19 +152,29 @@
         if(s.status === "finished") {
             document.getElementById("turnDisplay").innerText = "전투 종료";
             document.getElementById("attackBtn").disabled = true;
-            document.getElementById("restartBtn").style.display = "block";
-            showWinnerCard(s);
+            // 승리자 판단 로직
+            if(s.winner === mySide) {
+                document.getElementById("restartBtn").style.display = "block";
+                document.getElementById("copyBtn").style.display = "block";
+                showWinnerCard(s);
+            } else {
+                document.getElementById("restartBtn").style.display = "none";
+                document.getElementById("copyBtn").style.display = "none";
+                document.getElementById("noirCard").style.display = "none";
+                document.getElementById("turnDisplay").innerText = "패배했습니다...";
+            }
         } else {
             const isMyTurn = s.turn === mySide && s.status === "playing";
-            document.getElementById("turnDisplay").innerText = isMyTurn ? "🔴 당신의 턴입니다!" : "⚪ 상대의 차례입니다";
+            document.getElementById("turnDisplay").innerText = isMyTurn ? "🔴 당신의 턴!" : "⚪ 상대 차례";
             document.getElementById("turnDisplay").style.color = isMyTurn ? "#f1c40f" : "#666";
             document.getElementById("attackBtn").disabled = !isMyTurn || isProcessing;
             document.getElementById("noirCard").style.display = "none";
             document.getElementById("copyBtn").style.display = "none";
+            document.getElementById("restartBtn").style.display = "none";
         }
 
         logsEl.innerHTML = "";
-        (s.logs || []).forEach(log => {
+        (s.logs || []).slice(-20).forEach(log => { // 최근 20개만 표시
             const li = document.createElement("li");
             li.innerText = log;
             logsEl.appendChild(li);
@@ -180,8 +192,7 @@
             const snap = await get(roomRef);
             const s = snap.val();
             
-            // 한 번 더 턴 확인 (보안)
-            if(s.turn !== mySide || s.status !== "playing") throw new Error("Not your turn");
+            if(s.turn !== mySide || s.status !== "playing") return;
 
             const targetSide = mySide === "A" ? "B" : "A";
             let updates = {};
@@ -191,7 +202,7 @@
 
             if(s.players[mySide].bleeding) {
                 myHp -= 2;
-                logs.push(`[상태] ${myName} 출혈 피해 -2`);
+                logs.push(`[시스템] ${myName} 출혈 피해 -2`);
             }
 
             const dice = Math.floor(Math.random() * 20) + 1;
@@ -200,12 +211,12 @@
 
             if(dice >= 15 && Math.random() < 0.3) {
                 updates[`players/${targetSide}/bleeding`] = true;
-                logs.push(`[치명타] ${s.players[targetSide].name} 출혈 발생!`);
+                logs.push(`[상태] ${s.players[targetSide].name} 출혈 발생!`);
             }
 
             updates[`players/${mySide}/hp`] = myHp;
             updates[`players/${targetSide}/hp`] = targetHp;
-            updates[`turn`] = targetSide; // 턴 교체
+            updates[`turn`] = targetSide; 
 
             if(targetHp <= 0 || myHp <= 0) {
                 const winnerSide = targetHp <= 0 ? mySide : targetSide;
@@ -213,7 +224,7 @@
                 updates[`status`] = "finished";
                 updates[`winner`] = winnerSide;
                 logs.push(`🏆 ${s.players[winnerSide].name} 승리!`);
-                logs.push(`💥 ${s.players[loserSide].name} 전투 불능.`);
+                logs.push(`💥 ${s.players[loserSide].name} 리타이어.`);
             }
             updates[`logs`] = logs;
             await update(roomRef, updates);
@@ -225,33 +236,42 @@
     };
 
     function showWinnerCard(s) {
-        if(s.winner === mySide) {
-            const winner = s.players[s.winner];
-            const loser = s.players[s.winner === 'A' ? 'B' : 'A'];
-            const injuryLog = s.logs.find(l => l.includes("💥")) || "";
-            document.getElementById("noirCard").style.display = "block";
-            document.getElementById("copyBtn").style.display = "block";
-            document.getElementById("noirSummary").innerText = `${winner.name}, ${loser.name} 제압 완료.`;
-            document.getElementById("noirInjury").innerText = injuryLog;
-            document.getElementById("noirWinner").innerText = `WINNER: ${winner.name}`;
-            document.getElementById("noirDate").innerText = new Date().toLocaleDateString();
-        }
+        const winner = s.players[s.winner];
+        const loser = s.players[s.winner === 'A' ? 'B' : 'A'];
+        const injuryLog = s.logs.find(l => l.includes("💥")) || "";
+        document.getElementById("noirCard").style.display = "block";
+        document.getElementById("noirSummary").innerText = `${winner.name}, ${loser.name} 제압 완료.`;
+        document.getElementById("noirInjury").innerText = injuryLog;
+        document.getElementById("noirWinner").innerText = `WINNER: ${winner.name}`;
+        document.getElementById("noirDate").innerText = new Date().toLocaleDateString();
     }
 
-    document.getElementById("restartBtn").onclick = () => {
-        if(confirm("전장을 나갈까요? (방이 초기화될 수 있습니다)")) {
-            location.reload();
-        }
+    // 승리자가 방을 초기화하고 재시작함
+    document.getElementById("restartBtn").onclick = async () => {
+        if(!confirm("모든 데이터를 초기화하고 다시 시작하시겠습니까?")) return;
+        const roomRef = ref(db, `rooms/${roomId}`);
+        const snap = await get(roomRef);
+        const s = snap.val();
+
+        await set(roomRef, {
+            players: {
+                A: { name: s.players.A.name, hp: 50, bleeding: false },
+                B: { name: s.players.B.name, hp: 50, bleeding: false }
+            },
+            turn: "A",
+            status: "playing",
+            logs: ["새로운 라운드가 시작되었습니다."]
+        });
     };
 
     document.getElementById("copyBtn").onclick = async () => {
         const text = `[BATTLE REPORT]\n${document.getElementById("noirSummary").innerText}\n${document.getElementById("noirInjury").innerText}`;
         try {
             await navigator.clipboard.writeText(text);
-            alert("복사되었습니다.");
+            alert("복사 성공");
         } catch (e) {
             const t = document.createElement("textarea"); t.value = text; document.body.appendChild(t); t.select(); document.execCommand('copy'); document.body.removeChild(t);
-            alert("복사되었습니다.");
+            alert("복사 성공");
         }
     };
 </script>
