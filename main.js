@@ -72,9 +72,7 @@ async function joinRoom(roomId,myName){
     snap=await get(roomRef); data=snap.val();
     roomUI.style.display="block"; meEl.innerText=mySide; localStorage.setItem("diceSide",mySide); localStorage.setItem("diceName",myName);
     updateUI(data);
-    onValue(roomRef,snap=>{ const s=snap.val(); if(!s)return; updateUI(s);
-        if((!s.players.A?.name || s.players.A.name==="대기중")&&(!s.players.B?.name || s.players.B.name==="대기중")){ ref(db,`rooms/${roomId}`).remove(); }
-    });
+    onValue(roomRef,snap=>{ const s=snap.val(); if(!s)return; updateUI(s); });
     const playerRef = ref(db, `rooms/${roomId}/players/${mySide}`);
     onDisconnect(playerRef).remove();
 }
