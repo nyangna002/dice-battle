@@ -2,45 +2,133 @@
 <html lang="ko">
 <head>
 <meta charset="UTF-8">
-<title>Dice Battle</title>
+<title>Dice Battle - Noir Edition</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<!-- PNG 저장용 라이브러리 -->
+<script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
 
 <style>
 body {
-  background:#111;
+  background:#121212;
   color:#eee;
-  font-family:system-ui;
+  font-family:"Noto Serif KR", serif;
   padding:20px;
 }
-button { padding:10px; font-size:16px; }
+
+/* 전투 UI */
+button {
+  padding:10px;
+  font-size:16px;
+  margin:6px 0;
+  cursor:pointer;
+}
 button:disabled { opacity:.4; }
+
 .hp { height:18px; background:#333; margin-bottom:10px; }
 .hp > div { height:100%; transition:.3s; }
+
+.status { font-size:14px; opacity:.85; }
+#copySummary { display:none; background:#2c3e50; padding:6px; }
+
+/* 느와르 카드 */
+.noir-card {
+  width:320px;
+  background:#0f0f0f;
+  border:1px solid #333;
+  padding:18px;
+  color:#e0e0e0;
+  box-shadow:0 0 25px rgba(0,0,0,0.9);
+  margin-top:20px;
+}
+
+.noir-title {
+  font-size:14px;
+  letter-spacing:2px;
+  color:#888;
+  border-bottom:1px solid #333;
+  padding-bottom:6px;
+  margin-bottom:12px;
+}
+
+.noir-body p {
+  font-size:14px;
+  line-height:1.6;
+  margin:0 0 10px 0;
+}
+
+.noir-footer {
+  display:flex;
+  justify-content:space-between;
+  font-size:11px;
+  color:#666;
+  border-top:1px solid #333;
+  padding-top:8px;
+  margin-top:12px;
+}
+
+.noir-actions {
+  margin-top:12px;
+  text-align:center;
+}
+
+.noir-actions button {
+  background:#1a1a1a;
+  color:#ccc;
+  border:1px solid #333;
+  padding:6px 12px;
+  cursor:pointer;
+  font-size:12px;
+}
+
+.noir-actions button:hover {
+  background:#222;
+}
 </style>
 </head>
 
 <body>
+
 <div id="room">
   <p>내 플레이어: <b id="me"></b></p>
   <p>턴: <b id="turn"></b></p>
 
   <b id="nameA"></b>
+  <div class="status" id="statusA"></div>
   <div class="hp"><div id="hpA"></div></div>
 
   <b id="nameB"></b>
+  <div class="status" id="statusB"></div>
   <div class="hp"><div id="hpB"></div></div>
 
   <button id="attack">🎲 공격</button>
   <button id="restart" style="display:none">🔁 재시작</button>
+  <button id="copySummary">📋 전투 결과 요약 복사</button>
 
   <ul id="logs"></ul>
+</div>
+
+<!-- 느와르 카드 -->
+<div id="noirCard" class="noir-card">
+  <div class="noir-title">BATTLE REPORT</div>
+  <div class="noir-body">
+    <p id="noirSummary"></p>
+    <p id="noirInjury"></p>
+  </div>
+  <div class="noir-footer">
+    <span id="noirWinner"></span>
+    <span id="noirDate"></span>
+  </div>
+  <div class="noir-actions">
+    <button onclick="saveAsPNG()">PNG로 저장</button>
+  </div>
 </div>
 
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-app.js";
 import { getDatabase, ref, get, update, onValue } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-database.js";
 
-/* Firebase */
+/* Firebase 설정 */
 const firebaseConfig = {
   apiKey: "AIzaSyB5DBFCeHAy0ZhM3ITwu4MklaGqtqv9vhU",
   authDomain: "dice-7fe9a.firebaseapp.com",
@@ -64,85 +152,157 @@ const nameA = document.getElementById("nameA");
 const nameB = document.getElementById("nameB");
 const hpA = document.getElementById("hpA");
 const hpB = document.getElementById("hpB");
+const statusA = document.getElementById("statusA");
+const statusB = document.getElementById("statusB");
 const btnAttack = document.getElementById("attack");
 const btnRestart = document.getElementById("restart");
+const btnSummary = document.getElementById("copySummary");
 const logsEl = document.getElementById("logs");
 
 meEl.innerText = mySide;
 
-/* 색 */
+/* 유틸 */
 const hpColor = hp =>
   hp > 20 ? "#2ecc71" : hp > 10 ? "#f1c40f" : "#e74c3c";
+const BODY_PARTS = ["머리","어깨","팔","손목","복부","옆구리","허벅지","종아리"];
 
 /* 실시간 반영 */
 onValue(roomRef, snap => {
   const s = snap.val();
-  if (!s) return;
+  if(!s) return;
 
   turnEl.innerText = s.turn;
 
   nameA.innerText = s.players.A.name;
   nameB.innerText = s.players.B.name;
 
-  hpA.style.width = (s.players.A.hp / 30 * 100) + "%";
+  statusA.innerText = s.players.A.bleeding ? "🩸 출혈" : "";
+  statusB.innerText = s.players.B.bleeding ? "🩸 출혈" : "";
+
+  hpA.style.width = (s.players.A.hp/30*100)+"%";
   hpA.style.background = hpColor(s.players.A.hp);
-  hpB.style.width = (s.players.B.hp / 30 * 100) + "%";
+  hpB.style.width = (s.players.B.hp/30*100)+"%";
   hpB.style.background = hpColor(s.players.B.hp);
 
-  btnAttack.disabled =
-    s.status !== "playing" || s.turn !== mySide;
+  btnAttack.disabled = s.status!=="playing" || s.turn!==mySide;
+  btnRestart.style.display = s.status==="finished" ? "block":"none";
+  btnSummary.style.display = (s.status==="finished" && s.winner===mySide) ? "block":"none";
 
-  btnRestart.style.display =
-    s.status === "finished" ? "block" : "none";
-
-  logsEl.innerHTML = "";
-  (s.logs || []).forEach(l => {
-    const li = document.createElement("li");
-    li.innerText = l;
+  logsEl.innerHTML="";
+  (s.logs||[]).forEach(l=>{
+    const li=document.createElement("li");
+    li.innerText=l;
     logsEl.appendChild(li);
   });
 });
 
-/* 공격 (🔥 핵심 수정됨) */
-btnAttack.onclick = async () => {
+/* 공격 */
+btnAttack.onclick = async ()=>{
   const snap = await get(roomRef);
   const s = snap.val();
-  if (!s || s.status !== "playing" || s.turn !== mySide) return;
+  if(!s || s.status!=="playing" || s.turn!==mySide) return;
 
-  const target = mySide === "A" ? "B" : "A";
-  const dice = Math.floor(Math.random() * 20) + 1;
-  const newHp = s.players[target].hp - dice;
+  const attacker = mySide;
+  const target = mySide==="A"?"B":"A";
+  const targetName = s.players[target].name;
 
-  const logs = [...(s.logs || []),
-    `⚔️ ${myName}의 공격! (${dice})`
-  ];
+  let updates = {};
+  let logs = [...(s.logs||[])];
 
-  const updates = {
-    [`players/${target}/hp`]: newHp,
-    turn: target,
-    logs
-  };
+  /* 출혈 데미지 */
+  if(s.players[attacker].bleeding){
+    updates[`players/${attacker}/hp`] = s.players[attacker].hp-2;
+    logs.push(`🩸 ${myName}: 출혈로 체력을 잃었다 (-2)`);
+  }
 
-  if (newHp <= 0) {
+  const dice = Math.floor(Math.random()*20)+1;
+  let newHp = s.players[target].hp - dice;
+
+  logs.push(`⚔️ ${myName}의 공격 (${dice})`);
+
+  /* 출혈 부여 */
+  let bleeding = s.players[target].bleeding || false;
+  if(dice>=15 && Math.random()<0.3){
+    bleeding = true;
+    logs.push(`🩸 ${targetName}: 출혈 상태에 빠졌다`);
+  }
+
+  updates[`players/${target}/hp`] = newHp;
+  updates[`players/${target}/bleeding`] = bleeding;
+  updates.turn = target;
+  updates.logs = logs;
+
+  /* 전투 종료 */
+  if(newHp <=0){
+    const part = BODY_PARTS[Math.floor(Math.random()*BODY_PARTS.length)];
     updates.status = "finished";
-    updates.logs = [...logs, `🏆 ${myName} 승리!`];
+    updates.winner = mySide;
+    updates.logs = [...logs, `🏆 ${myName} 승리`,`💥 ${targetName}, ${part}에 부상을 입었습니다.`];
+
+    /* 느와르 카드 표시 */
+    showNoirCard({
+      winnerName: myName,
+      loserName: targetName,
+      injuryPart: part
+    });
   }
 
   await update(roomRef, updates);
 };
 
 /* 재시작 */
-btnRestart.onclick = async () => {
-  await update(roomRef, {
-    players: {
-      A: { name: nameA.innerText, hp: 30 },
-      B: { name: nameB.innerText, hp: 30 }
+btnRestart.onclick = async ()=>{
+  await update(roomRef,{
+    players:{
+      A:{name:nameA.innerText,hp:30,bleeding:false},
+      B:{name:nameB.innerText,hp:30,bleeding:false}
     },
-    turn: "A",
-    status: "playing",
-    logs: ["🔁 전투 재시작"]
+    turn:"A",
+    status:"playing",
+    winner:null,
+    logs:["🔁 새로운 교전이 시작되었다"]
   });
 };
+
+/* 전투 결과 요약 복사 */
+btnSummary.onclick = async ()=>{
+  const snap = await get(roomRef);
+  const s = snap.val();
+  if(!s || s.winner!==mySide) return;
+
+  const loserSide = mySide==="A"?"B":"A";
+  const loserName = s.players[loserSide].name;
+  const attacks = s.logs.filter(l=>l.includes("⚔️")).length;
+  const injury = s.logs.find(l=>l.includes("💥"))||"";
+
+  const summary = `[전투 결과 보고]
+${myName}, ${attacks}회의 교전을 통해 ${loserName} 제압 완료.
+${injury}`.trim();
+
+  await navigator.clipboard.writeText(summary);
+  alert("전투 결과 요약이 복사되었습니다");
+};
+
+/* ---------------- 느와르 카드 ---------------- */
+function showNoirCard({winnerName,loserName,injuryPart}){
+  document.getElementById("noirSummary").innerText =
+    `${winnerName}, ${loserName} 제압 성공.`;
+  document.getElementById("noirInjury").innerText =
+    `${loserName}, ${injuryPart}에 부상을 입고 전투가 종료되었다.`;
+  document.getElementById("noirWinner").innerText = `WINNER: ${winnerName}`;
+  document.getElementById("noirDate").innerText = new Date().toLocaleDateString();
+}
+
+/* PNG 저장 */
+function saveAsPNG(){
+  const card = document.getElementById("noirCard");
+  html2canvas(card,{backgroundColor:"#0f0f0f"}).then(canvas=>{
+    const link = document.createElement("a");
+    link.download = "battle_report.png";
+    link.href = canvas.toDataURL();
+    link.click();
+  });
+}
 </script>
 </body>
 </html>
