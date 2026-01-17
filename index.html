@@ -72,7 +72,9 @@ const firebaseConfig = {
   authDomain: "dice-7fe9a.firebaseapp.com",
   databaseURL: "https://dice-7fe9a-default-rtdb.firebaseio.com",
   projectId: "dice-7fe9a"
-};
+}
+    
+    ;
 
 const app = initializeApp(firebaseConfig);
 const db = getDatabase(app);
@@ -93,3 +95,176 @@ const btnAttack=document.getElementById("attack");
 // URL 파라미터 확인
 const urlParams = new URLSearchParams(window.location.search);
 if(urlParams.get('room')) roomInput.value = urlParams.get('room');
+
+/* UI 업데이트 함수 */
+function updateUI(s){
+    if(!s) return;
+    turnEl.innerText = s.turn === mySide ? "내 차례" : "상대 차례";
+    document.getElementById("nameA").innerText = s.players?.A?.name || "대기중";
+    document.getElementById("nameB").innerText = s.players?.B?.name || "대기중";
+    document.getElementById("statusA").innerText = s.players?.A?.bleeding ? " 🩸 출혈" : "";
+    document.getElementById("statusB").innerText = s.players?.B?.bleeding ? " 🩸 출혈" : "";
+    
+    const hpAVal = s.players?.A?.hp ?? 50;
+    const hpBVal = s.players?.B?.hp ?? 50;
+    document.getElementById("hpA").style.width = (hpAVal/50*100) + "%";
+    document.getElementById("hpA").style.background = hpColor(hpAVal);
+    document.getElementById("hpB").style.width = (hpBVal/50*100) + "%";
+    document.getElementById("hpB").style.background = hpColor(hpBVal);
+
+    btnAttack.disabled = s.status !== "playing" || s.turn !== mySide;
+    document.getElementById("restart").style.display = s.status === "finished" ? "block" : "none";
+    document.getElementById("copySummary").style.display = (s.status === "finished" && s.winner === mySide) ? "block" : "none";
+
+    logsEl.innerHTML = "";
+    (s.logs || []).slice().reverse().forEach(l => {
+        const li = document.createElement("li");
+        li.innerText = l;
+        logsEl.appendChild(li);
+    });
+
+    if(s.status === "finished") {
+        const winnerSide = s.winner;
+        const loserSide = winnerSide === "A" ? "B" : "A";
+        const injuryLog = s.logs.find(l => l.includes("부상")) || "";
+        showNoirCard({
+            winnerName: s.players[winnerSide].name,
+            loserName: s.players[loserSide].name,
+            injuryPart: injuryLog.split(" ")[2] || "전신"
+        });
+    } else {
+        document.getElementById("noirCard").style.display = "none";
+    }
+}
+
+function showNoirCard({winnerName, loserName, injuryPart}){
+    document.getElementById("noirCard").style.display = "block";
+    document.getElementById("noirSummary").innerText = `${winnerName}, ${loserName} 제압 성공.`;
+    document.getElementById("noirInjury").innerText = `${loserName}, ${injuryPart} 부상을 입고 전투 불능.`;
+    document.getElementById("noirWinner").innerText = `WINNER: ${winnerName}`;
+    document.getElementById("noirDate").innerText = new Date().toLocaleDateString();
+}
+
+/* 방 입장 로직 */
+async function joinRoom(targetId, name){
+    roomId = targetId; 
+    myName = name;
+    const roomRef = ref(db, `rooms/${roomId}`);
+    let snap = await get(roomRef);
+    
+    if(!snap.exists()) return alert("방이 존재하지 않습니다.");
+    let data = snap.val();
+
+    if(!data.players.A.name || data.players.A.name === "대기중"){
+        mySide = "A";
+        await update(ref(db, `rooms/${roomId}/players/A`), {name: myName});
+    } else if(!data.players.B.name || data.players.B.name === "대기중"){
+        mySide = "B";
+        await update(ref(db, `rooms/${roomId}/players/B`), {name: myName});
+        await update(roomRef, {status: "playing", logs: [...(data.logs||[]), "전투 개시"]});
+    } else {
+        return alert("방이 가득 찼습니다.");
+    }
+
+    document.getElementById("me").innerText = mySide;
+    document.getElementById("myNameDisplay").innerText = myName;
+    roomUI.style.display = "block";
+
+    onValue(roomRef, (snapshot) => {
+        updateUI(snapshot.val());
+    });
+}
+
+createRoomBtn.onclick = async () => {
+    const inputId = roomInput.value.trim();
+    if(!inputId) return alert("방 번호 입력!");
+    myName = prompt("이름 입력") || "Player1";
+    
+    const roomRef = ref(db, `rooms/${inputId}`);
+    await set(roomRef, {
+        players: {
+            A: {name: myName, hp: 50, bleeding: false},
+            B: {name: "대기중", hp: 50, bleeding: false}
+        },
+        turn: "A",
+        status: "waiting",
+        logs: ["새로운 전투 생성"]
+    });
+    mySide = "A";
+    roomId = inputId;
+    document.getElementById("me").innerText = mySide;
+    document.getElementById("myNameDisplay").innerText = myName;
+    roomUI.style.display = "block";
+    onValue(roomRef, snap => updateUI(snap.val()));
+};
+
+enterRoomBtn.onclick = () => {
+    const inputId = roomInput.value.trim();
+    if(!inputId) return alert("방 번호 입력!");
+    const name = prompt("이름 입력") || "Player2";
+    joinRoom(inputId, name);
+};
+
+btnAttack.onclick = async () => {
+    const roomRef = ref(db, `rooms/${roomId}`);
+    const snap = await get(roomRef);
+    const s = snap.val();
+    
+    const attacker = mySide;
+    const target = mySide === "A" ? "B" : "A";
+    let updates = {};
+    let logs = s.logs || [];
+    
+    let currentTargetHp = s.players[target].hp;
+    let currentAttackerHp = s.players[attacker].hp;
+
+    // 출혈 데미지 처리
+    if(s.players[attacker].bleeding){
+        currentAttackerHp -= 2;
+        logs.push(`🩸 ${myName} 출혈 데미지 (-2)`);
+        updates[`players/${attacker}/hp`] = currentAttackerHp;
+    }
+
+    const dice = Math.floor(Math.random() * 20) + 1;
+    currentTargetHp -= dice;
+    logs.push(`⚔️ ${myName}의 공격! [${dice}] 데미지`);
+
+    if(dice >= 15 && Math.random() < 0.4){
+        updates[`players/${target}/bleeding`] = true;
+        logs.push(`🩸 ${s.players[target].name}에게 치명상, 출혈 발생!`);
+    }
+
+    updates[`players/${target}/hp`] = currentTargetHp;
+    updates[`turn`] = target;
+    
+    if(currentTargetHp <= 0 || currentAttackerHp <= 0){
+        const winner = currentTargetHp <= 0 ? attacker : target;
+        const loser = winner === "A" ? "B" : "A";
+        const part = BODY_PARTS[Math.floor(Math.random()*BODY_PARTS.length)];
+        updates[`status`] = "finished";
+        updates[`winner`] = winner;
+        logs.push(`🏆 ${s.players[winner].name} 승리!`);
+        logs.push(`💥 ${s.players[loser].name} ${part} 부상으로 리타이어`);
+    }
+
+    updates[`logs`] = logs;
+    await update(roomRef, updates);
+};
+
+document.getElementById("restart").onclick = async () => {
+    const roomRef = ref(db, `rooms/${roomId}`);
+    const snap = await get(roomRef);
+    const s = snap.val();
+    await update(roomRef, {
+        players: {
+            A: {name: s.players.A.name, hp: 50, bleeding: false},
+            B: {name: s.players.B.name, hp: 50, bleeding: false}
+        },
+        turn: "A",
+        status: "playing",
+        logs: ["전투 재시작"]
+    });
+};
+</script>
+</body>
+</html>
