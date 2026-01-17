@@ -51,19 +51,19 @@ button:disabled{opacity:.4;cursor:not-allowed;}
 
   <ul id="logs"></ul>
 
-  <div id="noirCard" class="noir-card">
-    <div class="noir-title">BATTLE REPORT</div>
-    <div class="noir-body">
-      <p id="noirSummary"></p>
-      <p id="noirInjury"></p>
-    </div>
-    <div class="noir-footer">
-      <span id="noirWinner"></span>
-      <span id="noirDate"></span>
-    </div>
-    <div class="noir-actions">
-      <button onclick="saveAsPNG()">PNG로 저장</button>
-    </div>
+<div id="noirCard" class="noir-card">
+  <div class="noir-title">BATTLE REPORT</div>
+  <div class="noir-body">
+    <p id="noirSummary"></p>
+    <p id="noirInjury"></p>
+  </div>
+  <div class="noir-footer">
+    <span id="noirWinner"></span>
+    <span id="noirDate"></span>
+  </div>
+  <!-- PNG 버튼 제거 -->
+</div>
+
   </div>
 </div>
 
@@ -275,7 +275,7 @@ btnSummary.onclick=async()=>{
     const loserSide=mySide==="A"?"B":"A";
     const loserName=s.players[loserSide].name;
     const attacks=s.logs.filter(l=>l.includes("⚔️")).length;
-    const injury=s.logs.find(l=>l.includes("💥"))||"";
+    const injury=s.logs.find(l=>l.includes(""))||"";
 
     const summary=`[전투 결과 보고]
 ${myName}, ${attacks}회의 교전을 통해 ${loserName} 제압 성공.
