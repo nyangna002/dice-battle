@@ -140,9 +140,8 @@ async function joinRoom(roomId,myName){
     const snap=await get(roomRef);
     if(!snap.exists()) return alert("방이 존재하지 않습니다");
 
-    const data = snap.val();
+    let data = snap.val();
 
-    // players 구조 없으면 초기화
     if(!data.players){
         await set(roomRef,{
             players:{
@@ -154,25 +153,26 @@ async function joinRoom(roomId,myName){
             winner:null,
             logs:["방 초기화"]
         });
+        const snap2 = await get(roomRef);
+        data = snap2.val();
     }
 
-    const updatedSnap = await get(roomRef);
-    const updatedData = updatedSnap.val();
+    if(!data.players) return alert("방 구조가 잘못되었습니다.");
 
-    if(!updatedData.players.A.name || updatedData.players.A.name==="대기중"){
+    if(!data.players.A.name || data.players.A.name==="대기중"){
         mySide="A";
-        await update(roomRef,{"players/A/name":myName});
-    } else if(!updatedData.players.B.name || updatedData.players.B.name==="대기중"){
+        await update(roomRef, {"players/A/name":myName});
+    } else if(!data.players.B.name || data.players.B.name==="대기중"){
         mySide="B";
-        await update(roomRef,{"players/B/name":myName});
+        await update(roomRef, {"players/B/name":myName});
     } else return alert("이미 2명이 접속중입니다!");
 
-    if(updatedData.status==="waiting"){
-        await update(roomRef,{status:"playing",logs:[...(updatedData.logs||[]),"2번째 플레이어 입장, 전투 시작"]});
+    if(data.status==="waiting"){
+        await update(roomRef,{status:"playing",logs:[...(data.logs||[]),"2번째 플레이어 입장, 전투 시작"]});
     }
 
-    localStorage.setItem("diceSide",mySide);
-    localStorage.setItem("diceName",myName);
+    localStorage.setItem("diceSide", mySide);
+    localStorage.setItem("diceName", myName);
     meEl.innerText=mySide;
     roomUI.style.display="block";
 
