@@ -31,7 +31,7 @@
     <h2 style="text-align:center; letter-spacing:4px; margin: 20px 0;">DICE BATTLE</h2>
     
     <div id="setupUI">
-        <input id="roomInput" type="tel" placeholder="방 번호(숫자)를 입력하세요"/>
+        <input id="roomInput" type="tel" placeholder="방 번호를 입력하세요"/>
         <button id="createRoom" style="background: #2c3e50;">새 전장 생성</button>
         <button id="enterRoom">전장 참여</button>
     </div>
@@ -42,7 +42,7 @@
         </div>
         
         <p style="text-align:center; color:#888; font-size:13px; margin:5px 0;">
-            <b id="meDisplay" style="color:#eee"></b> <span id="mySideDisplay"></span>
+            접속: <b id="meDisplay"></b> <span id="mySideDisplay"></span>
         </p>
         <h3 id="turnDisplay" style="text-align:center; color:#f1c40f; height: 24px; margin: 15px 0;">대기 중...</h3>
 
@@ -75,20 +75,19 @@
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-app.js";
     import { getDatabase, ref, set, get, update, onValue } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-database.js";
 
-    // Firebase 설정을 여기에 입력하세요
-  const firebaseConfig = {
+   const firebaseConfig = {
   apiKey: "AIzaSyB5DBFCeHAy0ZhM3ITwu4MklaGqtqv9vhU",
   authDomain: "dice-7fe9a.firebaseapp.com",
   databaseURL: "https://dice-7fe9a-default-rtdb.firebaseio.com",
   projectId: "dice-7fe9a"
-};;
+};
 
     const app = initializeApp(firebaseConfig);
     const db = getDatabase(app);
 
     let roomId = "", mySide = "", myName = "";
     let isProcessing = false; 
-    const BODY_PARTS = "머리", "심장", "어깨", "복부", "허벅지", "손목", "옆구리";
+    const BODY_PARTS = ["머리", "심장", "어깨", "복부", "허벅지", "손목", "옆구리", "발"];
 
     const setupUI = document.getElementById("setupUI");
     const gameUI = document.getElementById("gameUI");
@@ -103,7 +102,7 @@
         roomId = id; mySide = "A";
         await set(ref(db, `rooms/${roomId}`), {
             players: { A: { name: myName, hp: 50, bleeding: false }, B: { name: "대기 중...", hp: 50, bleeding: false } },
-            turn: "A", status: "waiting", logs: ["새로운 전장이 생성되었습니다."]
+            turn: "A", status: "waiting", logs: ["전투가 준비되었습니다."]
         });
         startGamelistener();
     };
@@ -113,7 +112,7 @@
         if(!id) return alert("방 번호를 입력하세요.");
         const roomRef = ref(db, `rooms/${id}`);
         const snap = await get(roomRef);
-        if(!snap.exists()) return alert("방이 존재하지 않습니다.");
+        if(!snap.exists()) return alert("전장이 존재하지 않습니다.");
         myName = prompt("당신의 이름?") || "방문자";
         roomId = id; mySide = "B";
         await update(ref(db, `rooms/${roomId}/players/B`), { name: myName });
@@ -147,12 +146,12 @@
         if(s.status === "finished") {
             document.getElementById("attackBtn").disabled = true;
             if(s.winner === mySide) {
-                document.getElementById("turnDisplay").innerText = "전투 종료 (승리)";
+                document.getElementById("turnDisplay").innerText = "VICTORY";
                 document.getElementById("restartBtn").style.display = "block";
                 document.getElementById("copyBtn").style.display = "block";
                 showWinnerCard(s);
             } else {
-                document.getElementById("turnDisplay").innerText = "전투 불능 (패배)";
+                document.getElementById("turnDisplay").innerText = "DEFEATED";
                 document.getElementById("restartBtn").style.display = "none";
                 document.getElementById("copyBtn").style.display = "none";
                 document.getElementById("noirCard").style.display = "none";
@@ -192,16 +191,16 @@
 
             if(s.players[mySide].bleeding) {
                 myHp -= 2;
-                logs.push(`[상태] ${myName} 출혈 피해 -2`);
+                logs.push(`🩸 ${myName} 출혈 피해 발생 (-2)`);
             }
 
             const dice = Math.floor(Math.random() * 20) + 1;
             targetHp -= dice;
-            logs.push(`[공격] ${myName}: ${dice} 피해!`);
+            logs.push(`⚔️ ${myName}: ${dice} 피해 부여!`);
 
             if(dice >= 15 && Math.random() < 0.3) {
                 updates[`players/${targetSide}/bleeding`] = true;
-                logs.push(`[상태] ${s.players[targetSide].name} 출혈 발생!`);
+                logs.push(`⚠️ ${s.players[targetSide].name}에게 치명상, 출혈 발생!`);
             }
 
             updates[`players/${mySide}/hp`] = myHp;
@@ -214,8 +213,9 @@
                 const injury = BODY_PARTS[Math.floor(Math.random() * BODY_PARTS.length)];
                 updates[`status`] = "finished";
                 updates[`winner`] = winnerSide;
-                logs.push(`🏆 ${s.players[winnerSide].name} 승리!`);
-                logs.push(`💥 ${s.players[loserSide].name}, [${injury}] 부위 부상으로 리타이어.`);
+                logs.push(`🏆 ${s.players[winnerSide].name}의 압도적 승리!`);
+                // 괄호 제거 및 자연스러운 문장
+                logs.push(`💥 ${s.players[loserSide].name}은(는) ${injury} 부상으로 인해 리타이어.`);
             }
             updates[`logs`] = logs;
             await update(roomRef, updates);
@@ -227,28 +227,28 @@
         const loser = s.players[s.winner === 'A' ? 'B' : 'A'];
         const injuryLog = s.logs.find(l => l.includes("💥")) || "";
         document.getElementById("noirCard").style.display = "block";
-        document.getElementById("noirSummary").innerText = `${winner.name}, ${loser.name} 제압 완료.`;
+        document.getElementById("noirSummary").innerText = `${winner.name}, ${loser.name}을(를) 제압했습니다.`;
         document.getElementById("noirInjury").innerText = injuryLog;
         document.getElementById("noirWinner").innerText = `WINNER: ${winner.name}`;
         document.getElementById("noirDate").innerText = new Date().toLocaleDateString();
     }
 
     document.getElementById("restartBtn").onclick = async () => {
-        if(!confirm("전장을 초기화하고 다시 시작하시겠습니까?")) return;
+        if(!confirm("모든 전황을 초기화하고 다시 시작하시겠습니까?")) return;
         const roomRef = ref(db, `rooms/${roomId}`);
         const snap = await get(roomRef);
         const s = snap.val();
         await set(roomRef, {
             players: { A: { name: s.players.A.name, hp: 50, bleeding: false }, B: { name: s.players.B.name, hp: 50, bleeding: false } },
-            turn: "A", status: "playing", logs: ["전투가 다시 시작되었습니다."]
+            turn: "A", status: "playing", logs: ["새로운 전투가 시작되었습니다."]
         });
     };
 
     document.getElementById("copyBtn").onclick = async () => {
         const text = `[BATTLE REPORT]\n${document.getElementById("noirSummary").innerText}\n${document.getElementById("noirInjury").innerText}`;
-        try { await navigator.clipboard.writeText(text); alert("복사 성공"); } catch (e) {
+        try { await navigator.clipboard.writeText(text); alert("보고서 복사 완료"); } catch (e) {
             const t = document.createElement("textarea"); t.value = text; document.body.appendChild(t); t.select(); document.execCommand('copy'); document.body.removeChild(t);
-            alert("복사 성공");
+            alert("보고서 복사 완료");
         }
     };
 </script>
