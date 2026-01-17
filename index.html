@@ -1,270 +1,257 @@
 <!DOCTYPE html>
 <html lang="ko">
 <head>
-<meta charset="UTF-8">
-<title>Dice Battle - Noir Edition</title>
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<style>
-    /* 기존 스타일 유지 */
-    body{background:#121212;color:#eee;font-family:"Noto Serif KR", serif;padding:20px;}
-    input, button{padding:8px;margin:4px;font-size:14px; background:#222; color:#fff; border:1px solid #444;}
-    button:hover{background:#333;}
-    button:disabled{opacity:.4;cursor:not-allowed;}
-    .hp{height:18px;background:#333;margin-bottom:10px; border-radius:3px; overflow:hidden;}
-    .hp>div{height:100%;transition:.3s;}
-    .status{font-size:14px;opacity:.85; height:20px;}
-    .noir-card{
-      display:none; /* 기본은 숨김 */
-      width:320px; background:#0f0f0f; border:2px solid #333; padding:18px;
-      color:#e0e0e0; box-shadow:0 0 25px rgba(0,0,0,0.9); margin-top:20px;
-    }
-    .noir-title{font-size:14px;letter-spacing:2px;color:#888;border-bottom:1px solid #333;padding-bottom:6px;margin-bottom:12px;}
-    .noir-footer{display:flex;justify-content:space-between;font-size:11px;color:#666;border-top:1px solid #333;padding-top:8px;margin-top:12px;}
-    #logs{max-height:150px; overflow-y:auto; font-size:13px; list-style:none; padding:0; border-left:2px solid #333; padding-left:10px;}
-</style>
+    <meta charset="UTF-8">
+    <title>Dice Battle - Noir Edition</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        body { background:#121212; color:#eee; font-family:"Noto Serif KR", serif; padding:20px; display:flex; flex-direction:column; align-items:center; }
+        .container { max-width: 400px; width: 100%; }
+        input, button { padding:10px; margin:5px 0; font-size:14px; width: 100%; box-sizing: border-box; background:#1e1e1e; color:#fff; border:1px solid #333; cursor:pointer; }
+        button:hover { background:#222; border-color:#555; }
+        button:disabled { opacity:.3; cursor:not-allowed; }
+        .hp-bar { height:18px; background:#333; margin: 5px 0 15px 0; border-radius:3px; overflow:hidden; }
+        .hp-fill { height:100%; transition: width 0.5s ease-in-out; width: 100%; }
+        .status-text { font-size:13px; color:#888; margin-bottom: 2px; }
+        #logs { 
+            background: #0a0a0a; border: 1px solid #222; padding: 10px; height: 150px; 
+            overflow-y: auto; font-size: 12px; list-style: none; margin-top: 20px;
+        }
+        #logs li { border-bottom: 1px solid #1a1a1a; padding: 4px 0; color: #bbb; }
+        .noir-card {
+            display:none; background:#0f0f0f; border:2px solid #333; padding:18px;
+            color:#e0e0e0; box-shadow:0 0 25px rgba(0,0,0,0.9); margin-top:20px;
+        }
+        .noir-title { font-size:12px; letter-spacing:2px; color:#555; border-bottom:1px solid #333; padding-bottom:5px; margin-bottom:10px; }
+        .noir-footer { display:flex; justify-content:space-between; font-size:10px; color:#444; border-top:1px solid #333; padding-top:8px; margin-top:10px; }
+        hr { width: 100%; border: 0; border-top: 1px solid #333; margin: 20px 0; }
+    </style>
 </head>
 <body>
 
-<h3>방 만들기 / 입장</h3>
-<input id="roomInput" placeholder="방 번호 입력"/>
-<button id="createRoom">방 만들기</button>
-<button id="enterRoom">입장</button>
-<p id="roomLink"></p>
+<div class="container">
+    <h2>DICE BATTLE</h2>
+    
+    <div id="setupUI">
+        <input id="roomInput" placeholder="방 번호를 입력하세요 (예: 1234)"/>
+        <button id="createRoom">새로운 전장 만들기</button>
+        <button id="enterRoom">기존 전장 입장하기</button>
+    </div>
 
-<hr>
+    <div id="gameUI" style="display:none;">
+        <p style="text-align:center; color:#888;">접속 정보: <b id="meDisplay"></b> (<span id="mySideDisplay"></span>)</p>
+        <h3 id="turnDisplay" style="text-align:center; color:#f1c40f;">상대 대기 중...</h3>
 
-<div id="roomUI" style="display:none;">
-    <p>내 플레이어: <b id="me"></b> (<span id="myNameDisplay"></span>)</p>
-    <p>턴: <b id="turn"></b></p>
-
-    <b id="nameA"></b> <span id="statusA" class="status"></span>
-    <div class="hp"><div id="hpA"></div></div>
-
-    <b id="nameB"></b> <span id="statusB" class="status"></span>
-    <div class="hp"><div id="hpB"></div></div>
-
-    <button id="attack">🎲 공격</button>
-    <button id="restart" style="display:none">재시작</button>
-    <button id="copySummary" style="display:none">📋 전투 결과 요약 복사</button>
-
-    <ul id="logs"></ul>
-
-    <div id="noirCard" class="noir-card">
-        <div class="noir-title">BATTLE REPORT</div>
-        <div class="noir-body">
-            <p id="noirSummary"></p>
-            <p id="noirInjury"></p>
+        <div>
+            <div class="status-text"><span id="nameA">플레이어 A</span> <span id="bleedingA"></span></div>
+            <div class="hp-bar"><div id="hpA" class="hp-fill" style="background:#2ecc71;"></div></div>
         </div>
-        <div class="noir-footer">
-            <span id="noirWinner"></span>
-            <span id="noirDate"></span>
+
+        <div>
+            <div class="status-text"><span id="nameB">플레이어 B</span> <span id="bleedingB"></span></div>
+            <div class="hp-bar"><div id="hpB" class="hp-fill" style="background:#2ecc71;"></div></div>
+        </div>
+
+        <button id="attackBtn" disabled>🎲 주사위 굴리기 (공격)</button>
+        <button id="restartBtn" style="display:none; background:#2c3e50;">다시 시작</button>
+        <button id="copyBtn" style="display:none; background:#27ae60;">전투 기록 복사</button>
+
+        <ul id="logs"></ul>
+
+        <div id="noirCard" class="noir-card">
+            <div class="noir-title">BATTLE REPORT</div>
+            <p id="noirSummary" style="font-size:14px; margin:0;"></p>
+            <p id="noirInjury" style="font-size:13px; color:#888;"></p>
+            <div class="noir-footer">
+                <span id="noirWinner"></span>
+                <span id="noirDate"></span>
+            </div>
         </div>
     </div>
 </div>
 
 <script type="module">
-import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-app.js";
-import { getDatabase, ref, get, set, update, onValue, onDisconnect } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-database.js";
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-app.js";
+    import { getDatabase, ref, set, get, update, onValue } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-database.js";
 
-/* Firebase 설정 (직접 입력하세요) */
-const firebaseConfig = {
+    // 1. 여기에 Firebase 설정을 넣으세요
+    const firebaseConfig = {
   apiKey: "AIzaSyB5DBFCeHAy0ZhM3ITwu4MklaGqtqv9vhU",
   authDomain: "dice-7fe9a.firebaseapp.com",
   databaseURL: "https://dice-7fe9a-default-rtdb.firebaseio.com",
   projectId: "dice-7fe9a"
-}
-    
-    ;
+};
+    const app = initializeApp(firebaseConfig);
+    const db = getDatabase(app);
 
-const app = initializeApp(firebaseConfig);
-const db = getDatabase(app);
+    let roomId = "";
+    let mySide = ""; // 'A' 또는 'B'
+    let myName = "";
+    const BODY_PARTS = ["머리", "심장", "어깨", "복부", "허벅지", "손목"];
 
-let roomId="", mySide="", myName="";
-const BODY_PARTS=["머리","어깨","팔","손목","복부","옆구리","허벅지","종아리"];
-const hpColor = hp => hp > 30 ? "#2ecc71" : hp > 15 ? "#f1c40f" : "#e74c3c";
+    const setupUI = document.getElementById("setupUI");
+    const gameUI = document.getElementById("gameUI");
+    const logsEl = document.getElementById("logs");
 
-// DOM 요소
-const roomInput=document.getElementById("roomInput");
-const createRoomBtn=document.getElementById("createRoom");
-const enterRoomBtn=document.getElementById("enterRoom");
-const roomUI=document.getElementById("roomUI");
-const turnEl=document.getElementById("turn");
-const logsEl=document.getElementById("logs");
-const btnAttack=document.getElementById("attack");
-
-// URL 파라미터 확인
-const urlParams = new URLSearchParams(window.location.search);
-if(urlParams.get('room')) roomInput.value = urlParams.get('room');
-
-/* UI 업데이트 함수 */
-function updateUI(s){
-    if(!s) return;
-    turnEl.innerText = s.turn === mySide ? "내 차례" : "상대 차례";
-    document.getElementById("nameA").innerText = s.players?.A?.name || "대기중";
-    document.getElementById("nameB").innerText = s.players?.B?.name || "대기중";
-    document.getElementById("statusA").innerText = s.players?.A?.bleeding ? " 🩸 출혈" : "";
-    document.getElementById("statusB").innerText = s.players?.B?.bleeding ? " 🩸 출혈" : "";
-    
-    const hpAVal = s.players?.A?.hp ?? 50;
-    const hpBVal = s.players?.B?.hp ?? 50;
-    document.getElementById("hpA").style.width = (hpAVal/50*100) + "%";
-    document.getElementById("hpA").style.background = hpColor(hpAVal);
-    document.getElementById("hpB").style.width = (hpBVal/50*100) + "%";
-    document.getElementById("hpB").style.background = hpColor(hpBVal);
-
-    btnAttack.disabled = s.status !== "playing" || s.turn !== mySide;
-    document.getElementById("restart").style.display = s.status === "finished" ? "block" : "none";
-    document.getElementById("copySummary").style.display = (s.status === "finished" && s.winner === mySide) ? "block" : "none";
-
-    logsEl.innerHTML = "";
-    (s.logs || []).slice().reverse().forEach(l => {
-        const li = document.createElement("li");
-        li.innerText = l;
-        logsEl.appendChild(li);
-    });
-
-    if(s.status === "finished") {
-        const winnerSide = s.winner;
-        const loserSide = winnerSide === "A" ? "B" : "A";
-        const injuryLog = s.logs.find(l => l.includes("부상")) || "";
-        showNoirCard({
-            winnerName: s.players[winnerSide].name,
-            loserName: s.players[loserSide].name,
-            injuryPart: injuryLog.split(" ")[2] || "전신"
-        });
-    } else {
-        document.getElementById("noirCard").style.display = "none";
-    }
-}
-
-function showNoirCard({winnerName, loserName, injuryPart}){
-    document.getElementById("noirCard").style.display = "block";
-    document.getElementById("noirSummary").innerText = `${winnerName}, ${loserName} 제압 성공.`;
-    document.getElementById("noirInjury").innerText = `${loserName}, ${injuryPart} 부상을 입고 전투 불능.`;
-    document.getElementById("noirWinner").innerText = `WINNER: ${winnerName}`;
-    document.getElementById("noirDate").innerText = new Date().toLocaleDateString();
-}
-
-/* 방 입장 로직 */
-async function joinRoom(targetId, name){
-    roomId = targetId; 
-    myName = name;
-    const roomRef = ref(db, `rooms/${roomId}`);
-    let snap = await get(roomRef);
-    
-    if(!snap.exists()) return alert("방이 존재하지 않습니다.");
-    let data = snap.val();
-
-    if(!data.players.A.name || data.players.A.name === "대기중"){
+    // 방 만들기
+    document.getElementById("createRoom").onclick = async () => {
+        const id = document.getElementById("roomInput").value.trim();
+        if(!id) return alert("방 번호를 입력하세요.");
+        myName = prompt("당신의 이름은?") || "무명객";
+        
+        roomId = id;
         mySide = "A";
-        await update(ref(db, `rooms/${roomId}/players/A`), {name: myName});
-    } else if(!data.players.B.name || data.players.B.name === "대기중"){
+        
+        await set(ref(db, `rooms/${roomId}`), {
+            players: {
+                A: { name: myName, hp: 50, bleeding: false },
+                B: { name: "대기 중...", hp: 50, bleeding: false }
+            },
+            turn: "A",
+            status: "waiting",
+            logs: ["전장이 생성되었습니다."]
+        });
+        
+        startGamelistener();
+    };
+
+    // 입장하기
+    document.getElementById("enterRoom").onclick = async () => {
+        const id = document.getElementById("roomInput").value.trim();
+        if(!id) return alert("방 번호를 입력하세요.");
+        
+        const roomRef = ref(db, `rooms/${id}`);
+        const snap = await get(roomRef);
+        
+        if(!snap.exists()) return alert("방이 존재하지 않습니다.");
+        
+        myName = prompt("당신의 이름은?") || "방문자";
+        roomId = id;
         mySide = "B";
-        await update(ref(db, `rooms/${roomId}/players/B`), {name: myName});
-        await update(roomRef, {status: "playing", logs: [...(data.logs||[]), "전투 개시"]});
-    } else {
-        return alert("방이 가득 찼습니다.");
+
+        await update(ref(db, `rooms/${roomId}/players/B`), { name: myName });
+        await update(roomRef, { status: "playing", logs: [...snap.val().logs, `${myName} 입장. 전투를 시작합니다.`] });
+        
+        startGamelistener();
+    };
+
+    function startGamelistener() {
+        setupUI.style.display = "none";
+        gameUI.style.display = "block";
+        document.getElementById("meDisplay").innerText = myName;
+        document.getElementById("mySideDisplay").innerText = mySide === 'A' ? '호스트' : '참여자';
+
+        onValue(ref(db, `rooms/${roomId}`), (snapshot) => {
+            const data = snapshot.val();
+            if(!data) return;
+            render(data);
+        });
     }
 
-    document.getElementById("me").innerText = mySide;
-    document.getElementById("myNameDisplay").innerText = myName;
-    roomUI.style.display = "block";
+    function render(s) {
+        // 이름 및 HP 업데이트
+        document.getElementById("nameA").innerText = s.players.A.name;
+        document.getElementById("nameB").innerText = s.players.B.name;
+        
+        const hpA = s.players.A.hp;
+        const hpB = s.players.B.hp;
+        document.getElementById("hpA").style.width = (hpA / 50 * 100) + "%";
+        document.getElementById("hpB").style.width = (hpB / 50 * 100) + "%";
+        
+        document.getElementById("bleedingA").innerText = s.players.A.bleeding ? "🩸" : "";
+        document.getElementById("bleedingB").innerText = s.players.B.bleeding ? "🩸" : "";
 
-    onValue(roomRef, (snapshot) => {
-        updateUI(snapshot.val());
-    });
-}
+        // 턴 표시
+        if(s.status === "waiting") {
+            document.getElementById("turnDisplay").innerText = "상대를 기다리는 중...";
+        } else if(s.status === "finished") {
+            document.getElementById("turnDisplay").innerText = "전투 종료";
+            document.getElementById("attackBtn").disabled = true;
+            document.getElementById("restartBtn").style.display = "block";
+            showWinnerCard(s);
+        } else {
+            document.getElementById("turnDisplay").innerText = s.turn === mySide ? "🔴 당신의 턴!" : "⚪ 상대의 턴...";
+            document.getElementById("attackBtn").disabled = s.turn !== mySide;
+        }
 
-createRoomBtn.onclick = async () => {
-    const inputId = roomInput.value.trim();
-    if(!inputId) return alert("방 번호 입력!");
-    myName = prompt("이름 입력") || "Player1";
-    
-    const roomRef = ref(db, `rooms/${inputId}`);
-    await set(roomRef, {
-        players: {
-            A: {name: myName, hp: 50, bleeding: false},
-            B: {name: "대기중", hp: 50, bleeding: false}
-        },
-        turn: "A",
-        status: "waiting",
-        logs: ["새로운 전투 생성"]
-    });
-    mySide = "A";
-    roomId = inputId;
-    document.getElementById("me").innerText = mySide;
-    document.getElementById("myNameDisplay").innerText = myName;
-    roomUI.style.display = "block";
-    onValue(roomRef, snap => updateUI(snap.val()));
-};
-
-enterRoomBtn.onclick = () => {
-    const inputId = roomInput.value.trim();
-    if(!inputId) return alert("방 번호 입력!");
-    const name = prompt("이름 입력") || "Player2";
-    joinRoom(inputId, name);
-};
-
-btnAttack.onclick = async () => {
-    const roomRef = ref(db, `rooms/${roomId}`);
-    const snap = await get(roomRef);
-    const s = snap.val();
-    
-    const attacker = mySide;
-    const target = mySide === "A" ? "B" : "A";
-    let updates = {};
-    let logs = s.logs || [];
-    
-    let currentTargetHp = s.players[target].hp;
-    let currentAttackerHp = s.players[attacker].hp;
-
-    // 출혈 데미지 처리
-    if(s.players[attacker].bleeding){
-        currentAttackerHp -= 2;
-        logs.push(`🩸 ${myName} 출혈 데미지 (-2)`);
-        updates[`players/${attacker}/hp`] = currentAttackerHp;
+        // 로그 업데이트
+        logsEl.innerHTML = "";
+        [...s.logs].reverse().forEach(log => {
+            const li = document.createElement("li");
+            li.innerText = log;
+            logsEl.appendChild(li);
+        });
     }
 
-    const dice = Math.floor(Math.random() * 20) + 1;
-    currentTargetHp -= dice;
-    logs.push(`⚔️ ${myName}의 공격! [${dice}] 데미지`);
+    // 공격 로직
+    document.getElementById("attackBtn").onclick = async () => {
+        const roomRef = ref(db, `rooms/${roomId}`);
+        const snap = await get(roomRef);
+        const s = snap.val();
+        
+        const targetSide = mySide === "A" ? "B" : "A";
+        let logs = s.logs || [];
+        let updates = {};
 
-    if(dice >= 15 && Math.random() < 0.4){
-        updates[`players/${target}/bleeding`] = true;
-        logs.push(`🩸 ${s.players[target].name}에게 치명상, 출혈 발생!`);
+        let myHp = s.players[mySide].hp;
+        let targetHp = s.players[targetSide].hp;
+
+        // 1. 출혈 체크
+        if(s.players[mySide].bleeding) {
+            myHp -= 2;
+            logs.push(`[시스템] ${myName}이(가) 출혈로 인해 체력 2를 잃었습니다.`);
+        }
+
+        // 2. 공격 주사위 (1~20)
+        const dice = Math.floor(Math.random() * 20) + 1;
+        targetHp -= dice;
+        logs.push(`[공격] ${myName}의 주사위: ${dice}! (${s.players[targetSide].name}의 체력: ${targetHp})`);
+
+        // 3. 출혈 부여 (주사위 15 이상일 때 30% 확률)
+        if(dice >= 15 && Math.random() < 0.3) {
+            updates[`players/${targetSide}/bleeding`] = true;
+            logs.push(`[치명타] ${s.players[targetSide].name}에게 출혈이 발생했습니다!`);
+        }
+
+        updates[`players/${mySide}/hp`] = myHp;
+        updates[`players/${targetSide}/hp`] = targetHp;
+        updates[`turn`] = targetSide;
+
+        // 4. 승리 판정
+        if(targetHp <= 0 || myHp <= 0) {
+            const winnerSide = targetHp <= 0 ? mySide : targetSide;
+            const loserSide = winnerSide === "A" ? "B" : "A";
+            const injury = BODY_PARTS[Math.floor(Math.random() * BODY_PARTS.length)];
+            
+            updates[`status`] = "finished";
+            updates[`winner`] = winnerSide;
+            logs.push(`[결과] ${s.players[winnerSide].name}의 승리!`);
+            logs.push(`[부상] ${s.players[loserSide].name}은(는) ${injury}에 깊은 상처를 입었습니다.`);
+        }
+
+        updates[`logs`] = logs;
+        await update(roomRef, updates);
+    };
+
+    function showWinnerCard(s) {
+        const winner = s.players[s.winner];
+        const loser = s.players[s.winner === 'A' ? 'B' : 'A'];
+        document.getElementById("noirCard").style.display = "block";
+        document.getElementById("noirSummary").innerText = `${winner.name}, ${loser.name}을(를) 쓰러뜨림.`;
+        document.getElementById("noirInjury").innerText = s.logs.find(l => l.includes("[부상]")) || "";
+        document.getElementById("noirWinner").innerText = `WINNER: ${winner.name}`;
+        document.getElementById("noirDate").innerText = new Date().toLocaleDateString();
+        
+        if(s.winner === mySide) document.getElementById("copyBtn").style.display = "block";
     }
 
-    updates[`players/${target}/hp`] = currentTargetHp;
-    updates[`turn`] = target;
-    
-    if(currentTargetHp <= 0 || currentAttackerHp <= 0){
-        const winner = currentTargetHp <= 0 ? attacker : target;
-        const loser = winner === "A" ? "B" : "A";
-        const part = BODY_PARTS[Math.floor(Math.random()*BODY_PARTS.length)];
-        updates[`status`] = "finished";
-        updates[`winner`] = winner;
-        logs.push(`🏆 ${s.players[winner].name} 승리!`);
-        logs.push(`💥 ${s.players[loser].name} ${part} 부상으로 리타이어`);
-    }
+    document.getElementById("restartBtn").onclick = () => location.reload();
 
-    updates[`logs`] = logs;
-    await update(roomRef, updates);
-};
-
-document.getElementById("restart").onclick = async () => {
-    const roomRef = ref(db, `rooms/${roomId}`);
-    const snap = await get(roomRef);
-    const s = snap.val();
-    await update(roomRef, {
-        players: {
-            A: {name: s.players.A.name, hp: 50, bleeding: false},
-            B: {name: s.players.B.name, hp: 50, bleeding: false}
-        },
-        turn: "A",
-        status: "playing",
-        logs: ["전투 재시작"]
-    });
-};
+    document.getElementById("copyBtn").onclick = async () => {
+        const summary = document.getElementById("noirSummary").innerText + "\n" + document.getElementById("noirInjury").innerText;
+        await navigator.clipboard.writeText(summary);
+        alert("기록이 복사되었습니다.");
+    };
 </script>
 </body>
 </html>
