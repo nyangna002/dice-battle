@@ -12,8 +12,6 @@ button:disabled{opacity:.4;cursor:not-allowed;}
 .hp{height:18px;background:#333;margin-bottom:10px;}
 .hp>div{height:100%;transition:.3s;}
 .status{font-size:14px;opacity:.85;}
-
-/* 카드 */
 .noir-card{
   width:320px;
   background:#0f0f0f;
@@ -27,18 +25,10 @@ button:disabled{opacity:.4;cursor:not-allowed;}
 .noir-title{font-size:14px;letter-spacing:2px;color:#888;border-bottom:1px solid #333;padding-bottom:6px;margin-bottom:12px;}
 .noir-body p{font-size:14px;line-height:1.6;margin:0 0 10px 0;}
 .noir-footer{display:flex;justify-content:space-between;font-size:11px;color:#666;border-top:1px solid #333;padding-top:8px;margin-top:12px;}
-
-/* 모바일 최적화 */
 @media screen and (max-width:480px){
   body{padding:10px;}
   input, button{padding:6px;font-size:12px;margin:3px;}
-  .noir-card{
-    width:90%;
-    padding:12px;
-    font-size:13px;
-    border:2px solid #333;
-    box-shadow:0 0 25px rgba(0,0,0,0.9);
-  }
+  .noir-card{width:90%;padding:12px;font-size:13px;border:2px solid #333;box-shadow:0 0 25px rgba(0,0,0,0.9);}
   .noir-title{font-size:12px;}
   .noir-body p{font-size:12px;line-height:1.4;}
   .noir-footer{font-size:10px;}
@@ -51,7 +41,7 @@ button:disabled{opacity:.4;cursor:not-allowed;}
 <body>
 
 <h3>방 만들기 / 입장</h3>
-<input id="roomInput" placeholder="방 이름 입력"/>
+<input id="roomInput" placeholder="방 번호 입력"/>
 <button id="createRoom">방 만들기</button>
 <button id="enterRoom">입장</button>
 <p id="roomLink"></p>
@@ -93,7 +83,6 @@ button:disabled{opacity:.4;cursor:not-allowed;}
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-app.js";
 import { getDatabase, ref, get, update, onValue, set, onDisconnect } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-database.js";
 
-/* Firebase 설정 */
 const firebaseConfig = {
   apiKey: "AIzaSyB5DBFCeHAy0ZhM3ITwu4MklaGqtqv9vhU",
   authDomain: "dice-7fe9a.firebaseapp.com",
@@ -105,14 +94,13 @@ const db = getDatabase(app);
 
 let roomId="", mySide="", myName="";
 const BODY_PARTS=["머리","어깨","팔","손목","복부","옆구리","허벅지","종아리"];
-const hpColor=hp=>hp>30?"#2ecc71":hp>15?"#f1c40f":"#e74c3c"; // 체력 50 기준
+const hpColor=hp=>hp>30?"#2ecc71":hp>15?"#f1c40f":"#e74c3c";
 
 const roomInput=document.getElementById("roomInput");
 const createRoomBtn=document.getElementById("createRoom");
 const enterRoomBtn=document.getElementById("enterRoom");
 const roomLink=document.getElementById("roomLink");
 const roomUI=document.getElementById("roomUI");
-
 const meEl=document.getElementById("me");
 const turnEl=document.getElementById("turn");
 const nameA=document.getElementById("nameA");
@@ -126,23 +114,13 @@ const btnRestart=document.getElementById("restart");
 const btnSummary=document.getElementById("copySummary");
 const logsEl=document.getElementById("logs");
 
-/* URL 입장 */
-let urlRoomId = new URLSearchParams(location.search).get("room");
-if(urlRoomId){
-    roomId = urlRoomId;
-    myName = prompt("플레이어 이름 입력") || "Player";
-    joinRoom(roomId,myName);
-}
-
 /* joinRoom */
 async function joinRoom(roomId,myName){
     const roomRef = ref(db, `rooms/${roomId}`);
     let snap = await get(roomRef);
     if(!snap.exists()) return alert("방이 존재하지 않습니다");
-
     let data = snap.val();
 
-    // players가 없으면 초기화
     if(!data.players){
         await set(roomRef,{
             players:{
@@ -154,52 +132,44 @@ async function joinRoom(roomId,myName){
             winner:null,
             logs:["방 초기화"]
         });
-        snap = await get(roomRef);
-        data = snap.val();
+        snap = await get(roomRef); data=snap.val();
     }
 
     if(!data.players) return alert("방 구조가 잘못되었습니다.");
 
-    // A/B 배정
-    if(!data.players.A.name || data.players.A.name==="대기중"){
-        mySide="A";
-        await update(roomRef, {"players/A/name": myName});
-    } else if(!data.players.B.name || data.players.B.name==="대기중"){
-        mySide="B";
-        await update(roomRef, {"players/B/name": myName});
-    } else return alert("이미 2명이 접속중입니다!");
+    if(!data.players.A?.name || data.players.A.name==="대기중"){ mySide="A"; await update(roomRef, {"players/A/name":myName}); }
+    else if(!data.players.B?.name || data.players.B.name==="대기중"){ mySide="B"; await update(roomRef, {"players/B/name":myName}); }
+    else return alert("이미 2명이 접속중입니다!");
 
-    // 상태 waiting → playing
-    if(data.status==="waiting"){
-        await update(roomRef,{status:"playing",logs:[...(data.logs||[]),"2번째 플레이어 입장, 전투 시작"]});
-    }
+    if(data.status==="waiting"){ await update(roomRef,{status:"playing",logs:[...(data.logs||[]),"2번째 플레이어 입장, 전투 시작"]}); }
 
-    localStorage.setItem("diceSide", mySide);
-    localStorage.setItem("diceName", myName);
-    meEl.innerText=mySide;
+    snap = await get(roomRef); data=snap.val();
+
+    meEl.innerText=mySide||"?";
+    turnEl.innerText=data.turn||"A";
+    nameA.innerText=data.players.A?.name||"대기중";
+    nameB.innerText=data.players.B?.name||"대기중";
+    statusA.innerText=data.players.A?.bleeding?"🩸 출혈":"";
+    statusB.innerText=data.players.B?.bleeding?"🩸 출혈":"";
+    hpA.style.width=((data.players.A?.hp||50)/50*100)+"%"; hpA.style.background=hpColor(data.players.A?.hp||50);
+    hpB.style.width=((data.players.B?.hp||50)/50*100)+"%"; hpB.style.background=hpColor(data.players.B?.hp||50);
+
     roomUI.style.display="block";
+    localStorage.setItem("diceSide",mySide); localStorage.setItem("diceName",myName);
 
-    // --- UI 표시용 DB 값 다시 읽기 ---
-    const snap2 = await get(roomRef);
-    const s = snap2.val();
-    turnEl.innerText = s.turn || "A";
-
-    // --- 자동 삭제 설정 ---
+    // 자동 삭제
     const playerRef = ref(db, `rooms/${roomId}/players/${mySide}`);
-    onDisconnect(playerRef).remove(); // 플레이어 나가면 삭제
+    onDisconnect(playerRef).remove();
 
     initBattle();
 }
 
 /* 방 만들기 */
 createRoomBtn.onclick=async()=>{
-    roomId=roomInput.value.trim();
-    if(!roomId)return alert("방 이름 입력!");
+    roomId=roomInput.value.trim(); if(!roomId)return alert("방 번호 입력!");
     myName=prompt("플레이어 이름 입력")||"Player";
-
     const roomRef=ref(db,`rooms/${roomId}`);
     const snap=await get(roomRef);
-
     if(!snap.exists()){
         mySide=Math.random()<0.5?"A":"B";
         await set(roomRef,{
@@ -214,21 +184,16 @@ createRoomBtn.onclick=async()=>{
         });
         alert("방 생성됨! URL 공유: ?room="+roomId);
         roomLink.innerText="URL: "+location.href+"?room="+roomId;
-    }else{
-        alert("이미 존재하는 방입니다!");
-    }
+    }else{ alert("이미 존재하는 방입니다!"); }
 
-    localStorage.setItem("diceSide",mySide);
-    localStorage.setItem("diceName",myName);
-    meEl.innerText=mySide;
-    roomUI.style.display="block";
+    localStorage.setItem("diceSide",mySide); localStorage.setItem("diceName",myName);
+    meEl.innerText=mySide; roomUI.style.display="block";
     initBattle();
 };
 
 /* 방 입장 */
 enterRoomBtn.onclick=async()=>{
-    const inputRoom=roomInput.value.trim();
-    if(!inputRoom) return alert("방 이름 입력!");
+    const inputRoom=roomInput.value.trim(); if(!inputRoom) return alert("방 번호 입력!");
     myName=prompt("플레이어 이름 입력")||"Player";
     joinRoom(inputRoom,myName);
 };
@@ -239,32 +204,24 @@ function initBattle(){
     onValue(roomRef,snap=>{
         const s=snap.val(); if(!s)return;
 
-        turnEl.innerText=s.turn || "A";
-        nameA.innerText=s.players.A?.name||"";
-        nameB.innerText=s.players.B?.name||"";
-
+        turnEl.innerText=s.turn||"A";
+        nameA.innerText=s.players.A?.name||"대기중";
+        nameB.innerText=s.players.B?.name||"대기중";
         statusA.innerText=s.players.A?.bleeding?"🩸 출혈":"";
         statusB.innerText=s.players.B?.bleeding?"🩸 출혈":"";
-
-        hpA.style.width=(s.players.A?.hp/50*100||0)+"%"; hpA.style.background=hpColor(s.players.A?.hp||0);
-        hpB.style.width=(s.players.B?.hp/50*100||0)+"%"; hpB.style.background=hpColor(s.players.B?.hp||0);
+        hpA.style.width=((s.players.A?.hp||50)/50*100)+"%"; hpA.style.background=hpColor(s.players.A?.hp||50);
+        hpB.style.width=((s.players.B?.hp||50)/50*100)+"%"; hpB.style.background=hpColor(s.players.B?.hp||50);
 
         btnAttack.disabled=s.status!=="playing"||s.turn!==mySide;
         btnRestart.style.display=s.status==="finished"?"block":"none";
-        btnSummary.style.display=(s.status==="finished" && s.winner===mySide)?"block":"none";
+        btnSummary.style.display=(s.status==="finished"&&s.winner===mySide)?"block":"none";
 
         logsEl.innerHTML="";
-        (s.logs||[]).forEach(l=>{
-            const li=document.createElement("li");
-            li.innerText=l;
-            logsEl.appendChild(li);
-        });
+        (s.logs||[]).forEach(l=>{const li=document.createElement("li"); li.innerText=l; logsEl.appendChild(li);});
 
-        // 자동 삭제 체크: 두 플레이어 모두 undefined이면 방 삭제
-        if((!s.players.A?.name || s.players.A.name==="대기중") &&
-           (!s.players.B?.name || s.players.B.name==="대기중")){
-            const roomRefDel=ref(db,`rooms/${roomId}`);
-            roomRefDel.remove();
+        // 두 플레이어 모두 나가면 자동 삭제
+        if((!s.players.A?.name || s.players.A.name==="대기중")&&(!s.players.B?.name || s.players.B.name==="대기중")){
+            ref(db,`rooms/${roomId}`).remove();
         }
     });
 }
@@ -274,25 +231,16 @@ btnAttack.onclick=async()=>{
     const roomRef=ref(db,`rooms/${roomId}`);
     const snap=await get(roomRef); const s=snap.val();
     if(!s || s.status!=="playing")return;
+    const attacker=mySide, target=mySide==="A"?"B":"A", targetName=s.players[target]?.name||"";
+    let updates={}, logs=[...(s.logs||[])];
 
-    const attacker=mySide;
-    const target=mySide==="A"?"B":"A";
-    const targetName=s.players[target]?.name||"";
-
-    let updates={}; let logs=[...(s.logs||[])];
-
-    if(s.players[attacker]?.bleeding){
-        updates[`players/${attacker}/hp`]=s.players[attacker].hp-2;
-        logs.push(`🩸 ${myName}, 출혈로 체력 감소 (-2)`);
-    }
-
+    if(s.players[attacker]?.bleeding){updates[`players/${attacker}/hp`]=s.players[attacker].hp-2; logs.push(`🩸 ${myName}, 출혈로 체력 감소 (-2)`);}
     const dice=Math.floor(Math.random()*20)+1;
-    let newHp=s.players[target]?.hp-dice || 0;
+    let newHp=(s.players[target]?.hp||0)-dice;
     logs.push(`⚔️ ${myName}의 공격 (${dice})`);
 
     let bleeding=s.players[target]?.bleeding||false;
     if(dice>=15 && Math.random()<0.3){bleeding=true; logs.push(`🩸 ${targetName}, 출혈 상태에 빠졌다`);}
-
     updates[`players/${target}/hp`]=newHp;
     updates[`players/${target}/bleeding`]=bleeding;
     updates.turn=target;
@@ -302,10 +250,8 @@ btnAttack.onclick=async()=>{
         const part=BODY_PARTS[Math.floor(Math.random()*BODY_PARTS.length)];
         updates.status="finished"; updates.winner=mySide;
         updates.logs=[...logs,`🏆 ${myName} 승리`,`💥 ${targetName}, ${part} 부위에 부상을 입었다.`];
-
         showNoirCard({winnerName:myName,loserName:targetName,injuryPart:part});
     }
-
     await update(roomRef,updates);
 };
 
@@ -313,10 +259,7 @@ btnAttack.onclick=async()=>{
 btnRestart.onclick=async()=>{
     const roomRef=ref(db,`rooms/${roomId}`);
     await update(roomRef,{
-        players:{
-            A:{name:nameA.innerText,hp:50,bleeding:false},
-            B:{nameB.innerText,hp:50,bleeding:false}
-        },
+        players:{A:{name:nameA.innerText,hp:50,bleeding:false},B:{nameB.innerText,hp:50,bleeding:false}},
         turn:"A",
         status:"playing",
         winner:null,
@@ -329,26 +272,17 @@ btnSummary.onclick=async()=>{
     const roomRef=ref(db,`rooms/${roomId}`);
     const snap=await get(roomRef); const s=snap.val();
     if(!s || s.winner!==mySide)return;
-
-    const loserSide=mySide==="A"?"B":"A";
-    const loserName=s.players[loserSide]?.name||"";
+    const loserSide=mySide==="A"?"B":"A"; const loserName=s.players[loserSide]?.name||"";
     const attacks=s.logs.filter(l=>l.includes("⚔️")).length;
     const injury=s.logs.find(l=>l.includes("💥"))||"";
-
-    const summary=`[전투 결과 보고]
-${myName}, ${attacks}회의 교전을 통해 ${loserName} 제압 성공.
-${injury}`.trim();
-
-    await navigator.clipboard.writeText(summary);
-    alert("복사되었습니다");
+    const summary=`[전투 결과 보고]\n${myName}, ${attacks}회의 교전을 통해 ${loserName} 제압 성공.\n${injury}`.trim();
+    await navigator.clipboard.writeText(summary); alert("복사되었습니다");
 };
 
 /* 느와르 카드 표시 */
 function showNoirCard({winnerName,loserName,injuryPart}){
-    document.getElementById("noirSummary").innerText=
-        `${winnerName}, ${loserName} 제압 성공.`;
-    document.getElementById("noirInjury").innerText=
-        `${loserName}, ${injuryPart}에 부상을 입고 전투 종료.`;
+    document.getElementById("noirSummary").innerText=`${winnerName}, ${loserName} 제압 성공.`;
+    document.getElementById("noirInjury").innerText=`${loserName}, ${injuryPart}에 부상을 입고 전투 종료.`;
     document.getElementById("noirWinner").innerText=`WINNER: ${winnerName}`;
     document.getElementById("noirDate").innerText=new Date().toLocaleDateString();
 }
