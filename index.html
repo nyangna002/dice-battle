@@ -69,8 +69,15 @@ button:disabled{opacity:.4;cursor:not-allowed;}
     </div>
   </div>
 </div>
+// 기존: let roomId = "";
+let urlRoomId = new URLSearchParams(location.search).get("room");
+if(urlRoomId){
+    roomId = urlRoomId;
+    myName = prompt("플레이어 이름 입력") || "Player";
+    joinRoom(roomId, myName);
+}
 
-<script type="module">
+  <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-app.js";
 import { getDatabase, ref, get, update, onValue, set } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-database.js";
 
@@ -113,8 +120,37 @@ const BODY_PARTS=["머리","어깨","팔","손목","복부","옆구리","허벅�
 /* 유틸 */
 const hpColor=hp=>hp>20?"#2ecc71":hp>10?"#f1c40f":"#e74c3c";
 
-/* ---------------- 방 생성 ---------------- */
-// 방 생성 / 입장
+async function joinRoom(roomId, myName){
+    const roomRef = ref(db, `rooms/${roomId}`);
+    const snap = await get(roomRef);
+    if(!snap.exists()) return alert("방이 존재하지 않습니다");
+
+    const data = snap.val();
+
+    // A/B 체크
+    if(!data.players.A.name || data.players.A.name==="대기중"){
+        mySide = "A";
+        await update(roomRef, {"players/A/name":myName});
+    } else if(!data.players.B.name || data.players.B.name==="대기중"){
+        mySide = "B";
+        await update(roomRef, {"players/B/name":myName});
+    } else {
+        return alert("이미 2명이 접속중입니다!");
+    }
+
+    // 상태 변경
+    if(data.status==="waiting"){
+        await update(roomRef,{status:"playing",logs:[...(data.logs||[]),"2번째 플레이어 입장, 전투 시작"]});
+    }
+
+    localStorage.setItem("diceSide", mySide);
+    localStorage.setItem("diceName", myName);
+    meEl.innerText = mySide;
+    roomUI.style.display="block";
+
+    initBattle();
+}
+
 createRoomBtn.onclick = async () => {
   roomId = roomInput.value.trim();
   if (!roomId) return alert("방 이름 입력!");
