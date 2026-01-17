@@ -1,7 +1,224 @@
 <!DOCTYPE html>
-<html>
-<body>
-<h1>페이지 연결 성공</h1>
-</body>
-</html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<title>Dice Battle</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 
+<style>
+body {
+  font-family: system-ui, sans-serif;
+  background: #111;
+  color: #eee;
+  margin: 0;
+  padding: 20px;
+}
+button {
+  padding: 12px 16px;
+  font-size: 16px;
+  margin: 6px 0;
+}
+input {
+  padding: 10px;
+  font-size: 16px;
+  width: 120px;
+}
+#room { display: none; }
+.hp {
+  height: 20px;
+  background: #333;
+  margin-bottom: 6px;
+}
+.hp > div {
+  height: 100%;
+  transition: width 0.3s;
+}
+.log {
+  font-size: 14px;
+  opacity: 0.9;
+}
+.me { color: #7fdcff; }
+</style>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-app.js";
+import {
+  getDatabase, ref, get, set, update, onValue
+} from "https://www.gstatic.com/firebasejs/10.7.0/firebase-database.js";
+
+/* 🔥 Firebase 설정값 교체 */
+const firebaseConfig = {
+  apiKey: "AIzaSyB5DBFCeHAy0ZhM3ITwu4MklaGqtqv9vhU",
+  authDomain: "dice-7fe9a.firebaseapp.com",
+  databaseURL: "https://dice-7fe9a-default-rtdb.firebaseio.com",
+  projectId: "dice-7fe9a"
+    }
+
+const app = initializeApp(firebaseConfig);
+const db = getDatabase(app);
+
+const qs = new URLSearchParams(location.search);
+let roomId = qs.get("room");
+let mySide = null;
+let myName = null;
+
+const lobby = document.getElementById("lobby");
+const room = document.getElementById("room");
+
+/* 유틸 */
+function makeCode() {
+  return Math.random().toString(36).substring(2, 6).toUpperCase();
+}
+function hpColor(hp) {
+  if (hp > 20) return "#3cb371";
+  if (hp > 10) return "#f1c40f";
+  return "#e74c3c";
+}
+
+/* DOM */
+document.body.innerHTML = `
+<div id="lobby">
+  <h2>🎲 Dice Battle</h2>
+  <button id="create">방 만들기</button><br><br>
+  <input id="code" placeholder="방 코드">
+  <button id="join">입장</button>
+</div>
+
+<div id="room">
+  <h3>방 코드: <span id="roomCode"></span></h3>
+  <p>턴: <b id="turn"></b></p>
+
+  <div>
+    <b id="nameA"></b>
+    <div class="hp"><div id="hpA"></div></div>
+  </div>
+
+  <div>
+    <b id="nameB"></b>
+    <div class="hp"><div id="hpB"></div></div>
+  </div>
+
+  <button id="attack">🎲 공격</button>
+  <ul id="logs"></ul>
+</div>
+`;
+
+const btnCreate = document.getElementById("create");
+const btnJoin = document.getElementById("join");
+const btnAttack = document.getElementById("attack");
+
+/* 방 생성 */
+btnCreate.onclick = async () => {
+  myName = prompt("이름 입력");
+  if (!myName) return;
+
+  roomId = makeCode();
+  mySide = "A";
+
+  await set(ref(db, `rooms/${roomId}`), {
+    players: {
+      A: { name: myName, hp: 30 },
+      B: null
+    },
+    turn: "A",
+    logs: [],
+    status: "playing"
+  });
+
+  location.search = `?room=${roomId}`;
+};
+
+/* 방 입장 */
+btnJoin.onclick = async () => {
+  const code = document.getElementById("code").value.trim().toUpperCase();
+  if (!code) return;
+
+  const snap = await get(ref(db, `rooms/${code}`));
+  if (!snap.exists()) {
+    alert("방이 없습니다");
+    return;
+  }
+
+  myName = prompt("이름 입력");
+  if (!myName) return;
+
+  const data = snap.val();
+  if (data.players.B) {
+    alert("방이 가득 찼습니다");
+    return;
+  }
+
+  mySide = "B";
+  await update(ref(db, `rooms/${code}/players/B`), {
+    name: myName,
+    hp: 30
+  });
+
+  location.search = `?room=${code}`;
+};
+
+/* 방 상태 구독 */
+if (roomId) {
+  const roomRef = ref(db, `rooms/${roomId}`);
+  document.getElementById("lobby").style.display = "none";
+  document.getElementById("room").style.display = "block";
+  document.getElementById("roomCode").innerText = roomId;
+
+  onValue(roomRef, snap => {
+    const s = snap.val();
+    if (!s) return;
+
+    nameA.innerText = s.players.A?.name || "대기 중";
+    nameB.innerText = s.players.B?.name || "대기 중";
+    turn.innerText = s.turn;
+
+    const hpAVal = s.players.A?.hp ?? 0;
+    const hpBVal = s.players.B?.hp ?? 0;
+
+    hpA.style.width = `${hpAVal / 30 * 100}%`;
+    hpA.style.background = hpColor(hpAVal);
+    hpB.style.width = `${hpBVal / 30 * 100}%`;
+    hpB.style.background = hpColor(hpBVal);
+
+    btnAttack.disabled =
+      s.status !== "playing" ||
+      s.turn !== mySide ||
+      !s.players.A || !s.players.B;
+
+    logs.innerHTML = "";
+    s.logs.forEach(l => {
+      const li = document.createElement("li");
+      li.className = "log";
+      li.innerText = l;
+      logs.appendChild(li);
+    });
+  });
+
+  /* 공격 */
+  btnAttack.onclick = async () => {
+    const snap = await get(roomRef);
+    const s = snap.val();
+    if (!s || s.turn !== mySide || s.status !== "playing") return;
+
+    const target = mySide === "A" ? "B" : "A";
+    const dice = Math.floor(Math.random() * 20) + 1;
+    const newHp = s.players[target].hp - dice;
+
+    const updates = {
+      [`players/${target}/hp`]: newHp,
+      turn: target,
+      logs: [...s.logs, `${myName} → d20 (${dice})`]
+    };
+
+    if (newHp <= 0) {
+      updates.status = "finished";
+      updates.logs.push(`🏆 ${myName} 승리!`);
+    }
+
+    await update(roomRef, updates);
+  };
+}
+</script>
+</head>
+<body></body>
+</html>
