@@ -39,6 +39,11 @@ input {
   font-size: 14px;
   opacity: 0.9;
 }
+#restart {
+  display: none;
+  margin-top: 10px;
+  background: #444;
+}
 </style>
 </head>
 
@@ -66,6 +71,8 @@ input {
   </div>
 
   <button id="attack">🎲 공격</button>
+  <button id="restart">🔁 재시작</button>
+
   <ul id="logs"></ul>
 </div>
 
@@ -75,7 +82,7 @@ import {
   getDatabase, ref, get, set, update, onValue
 } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-database.js";
 
-/* 🔥 Firebase 설정 (교체 필수) */
+/* 🔥 Firebase 설정 */
 const firebaseConfig = {
   apiKey: "AIzaSyB5DBFCeHAy0ZhM3ITwu4MklaGqtqv9vhU",
   authDomain: "dice-7fe9a.firebaseapp.com",
@@ -86,11 +93,20 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const db = getDatabase(app);
 
+/* 커스터마이즈 문장 */
+const TEXT = {
+  attack: (attacker, target, dice) =>
+    `⚔️ ${attacker}의 공격! (${dice} 데미지)`,
+  win: winner =>
+    `🏆 전투 종료! ${winner}의 승리!`,
+  restart: "🔁 전투가 다시 시작되었습니다"
+};
+
 /* URL */
 const qs = new URLSearchParams(location.search);
 const roomId = qs.get("room");
 
-/* localStorage 복원 */
+/* localStorage */
 let myName = localStorage.getItem("diceName");
 let mySide = localStorage.getItem("diceSide");
 
@@ -100,6 +116,7 @@ const room = document.getElementById("room");
 const btnCreate = document.getElementById("create");
 const btnJoin = document.getElementById("join");
 const btnAttack = document.getElementById("attack");
+const btnRestart = document.getElementById("restart");
 
 const nameA = document.getElementById("nameA");
 const nameB = document.getElementById("nameB");
@@ -159,22 +176,12 @@ btnJoin.onclick = async () => {
   if (!myName) return;
 
   const data = snap.val();
-
-  if (
-    data.players.A?.name === myName ||
-    data.players.B?.name === myName
-  ) {
-    alert("이미 사용 중인 이름입니다");
-    return;
-  }
-
   if (data.players.B) {
     alert("방이 가득 찼습니다");
     return;
   }
 
   mySide = "B";
-
   await update(ref(db, `rooms/${code}/players/B`), {
     name: myName,
     hp: 30
@@ -193,24 +200,11 @@ if (roomId) {
   room.style.display = "block";
   document.getElementById("roomCode").innerText = roomId;
 
-  if (localStorage.getItem("diceRoom") !== roomId) {
-    localStorage.removeItem("diceName");
-    localStorage.removeItem("diceSide");
-    myName = null;
-    mySide = null;
-    localStorage.setItem("diceRoom", roomId);
-  }
-
   const roomRef = ref(db, `rooms/${roomId}`);
 
   onValue(roomRef, snap => {
     const s = snap.val();
     if (!s) return;
-
-    if (!mySide && myName) {
-      if (s.players.A?.name === myName) mySide = "A";
-      if (s.players.B?.name === myName) mySide = "B";
-    }
 
     meEl.innerText = mySide || "?";
     turnEl.innerText = s.turn;
@@ -218,22 +212,20 @@ if (roomId) {
     nameA.innerText = s.players.A?.name || "대기 중";
     nameB.innerText = s.players.B?.name || "대기 중";
 
-    const hpAVal = s.players.A?.hp ?? 0;
-    const hpBVal = s.players.B?.hp ?? 0;
-
-    hpA.style.width = (hpAVal / 30 * 100) + "%";
-    hpA.style.background = hpColor(hpAVal);
-    hpB.style.width = (hpBVal / 30 * 100) + "%";
-    hpB.style.background = hpColor(hpBVal);
+    hpA.style.width = (s.players.A.hp / 30 * 100) + "%";
+    hpA.style.background = hpColor(s.players.A.hp);
+    hpB.style.width = (s.players.B.hp / 30 * 100) + "%";
+    hpB.style.background = hpColor(s.players.B.hp);
 
     btnAttack.disabled =
       s.status !== "playing" ||
-      s.turn !== mySide ||
-      !s.players.A ||
-      !s.players.B;
+      s.turn !== mySide;
+
+    btnRestart.style.display =
+      s.status === "finished" ? "block" : "none";
 
     logsEl.innerHTML = "";
-    (s.logs || []).forEach(l => {
+    s.logs.forEach(l => {
       const li = document.createElement("li");
       li.className = "log";
       li.innerText = l;
@@ -244,26 +236,40 @@ if (roomId) {
   btnAttack.onclick = async () => {
     const snap = await get(roomRef);
     const s = snap.val();
-    if (!s || s.turn !== mySide || s.status !== "playing") return;
+    if (!s || s.turn !== mySide) return;
 
     const target = mySide === "A" ? "B" : "A";
     const dice = Math.floor(Math.random() * 20) + 1;
     const newHp = s.players[target].hp - dice;
 
-    const newLogs = [...(s.logs || []), `${myName} → d20 (${dice})`];
+    let logs = [...s.logs,
+      TEXT.attack(myName, s.players[target].name, dice)
+    ];
 
     const updates = {
       [`players/${target}/hp`]: newHp,
       turn: target,
-      logs: newLogs
+      logs
     };
 
     if (newHp <= 0) {
       updates.status = "finished";
-      updates.logs = [...newLogs, `🏆 ${myName} 승리!`];
+      updates.logs = [...logs, TEXT.win(myName)];
     }
 
     await update(roomRef, updates);
+  };
+
+  btnRestart.onclick = async () => {
+    await update(roomRef, {
+      players: {
+        A: { name: nameA.innerText, hp: 30 },
+        B: { name: nameB.innerText, hp: 30 }
+      },
+      turn: "A",
+      status: "playing",
+      logs: [TEXT.restart]
+    });
   };
 }
 </script>
