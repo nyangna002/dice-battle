@@ -16,7 +16,7 @@ button:disabled{opacity:.4;cursor:not-allowed;}
 .hp>div{height:100%;transition:.3s;}
 .status{font-size:14px;opacity:.85;}
 #copySummary{display:none;background:#2c3e50;padding:6px;margin-top:6px;cursor:pointer;}
-/* 느와르 카드 */
+/* 카드 */
 .noir-card{width:320px;background:#0f0f0f;border:1px solid #333;padding:18px;color:#e0e0e0;box-shadow:0 0 25px rgba(0,0,0,0.9);margin-top:20px;}
 .noir-title{font-size:14px;letter-spacing:2px;color:#888;border-bottom:1px solid #333;padding-bottom:6px;margin-bottom:12px;}
 .noir-body p{font-size:14px;line-height:1.6;margin:0 0 10px 0;}
@@ -114,51 +114,58 @@ const BODY_PARTS=["머리","어깨","팔","손목","복부","옆구리","허벅�
 const hpColor=hp=>hp>20?"#2ecc71":hp>10?"#f1c40f":"#e74c3c";
 
 /* ---------------- 방 생성 ---------------- */
+// 방 생성 / 입장
 createRoomBtn.onclick = async () => {
   roomId = roomInput.value.trim();
-  if(!roomId) return alert("방 이름 입력!");
+  if (!roomId) return alert("방 이름 입력!");
 
   myName = prompt("플레이어 이름 입력") || "Player";
 
   const roomRef = ref(db, `rooms/${roomId}`);
   const snap = await get(roomRef);
-  if(!snap.exists()){
+
+  if (!snap.exists()) {
     // 새 방 생성
-    const side = Math.random()<0.5?"A":"B";
-    mySide = side;
-    await set(roomRef,{
-      players:{
-        A: side==="A"?{name:myName,hp:30,bleeding:false}:{name:"대기중",hp:30,bleeding:false},
-        B: side==="B"?{name:myName,hp:30,bleeding:false}:{name:"대기중",hp:30,bleeding:false}
+    mySide = Math.random() < 0.5 ? "A" : "B";
+    await set(roomRef, {
+      players: {
+        A: mySide === "A" ? { name: myName, hp: 30, bleeding: false } : { name: "대기중", hp: 30, bleeding: false },
+        B: mySide === "B" ? { name: myName, hp: 30, bleeding: false } : { name: "대기중", hp: 30, bleeding: false }
       },
-      turn:"A",
-      status:"waiting",
-      winner:null,
-      logs:["새 방 생성"]
+      turn: "A",
+      status: "waiting",
+      winner: null,
+      logs: ["새 방 생성"]
     });
-    alert("방 생성됨! URL 공유: ?room="+roomId);
-    roomLink.innerText = "URL: "+location.href+"?room="+roomId;
+    alert("방 생성됨! URL 공유: ?room=" + roomId);
+    roomLink.innerText = "URL: " + location.href + "?room=" + roomId;
   } else {
-    // 이미 있으면 입장
+    // 이미 있는 방 입장
     const data = snap.val();
-    if(!data.players.A.name || data.players.A.name==="대기중"){
-      mySide="A"; myName = prompt("플레이어 이름 입력")||"Player";
-      await update(roomRef, { "players/A/name":myName });
-    } else if(!data.players.B.name || data.players.B.name==="대기중"){
-      mySide="B"; myName = prompt("플레이어 이름 입력")||"Player";
-      await update(roomRef, { "players/B/name":myName });
+    if (!data.players.A.name || data.players.A.name === "대기중") {
+      mySide = "A";
+      await update(roomRef, { "players/A/name": myName });
+    } else if (!data.players.B.name || data.players.B.name === "대기중") {
+      mySide = "B";
+      await update(roomRef, { "players/B/name": myName });
     } else {
       return alert("이미 2명이 접속중입니다!");
+    }
+
+    // 방이 waiting이면 status를 playing으로 전환
+    if (data.status === "waiting") {
+      await update(roomRef, { status: "playing", logs: [...(data.logs || []), "2번째 플레이어 입장, 전투 시작"] });
     }
   }
 
   localStorage.setItem("diceSide", mySide);
   localStorage.setItem("diceName", myName);
   meEl.innerText = mySide;
-  roomUI.style.display="block";
+  roomUI.style.display = "block";
 
   initBattle();
 };
+
 
 /* ---------------- 전투 초기화 + 동기화 ---------------- */
 function initBattle(){
