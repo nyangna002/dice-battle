@@ -4,7 +4,24 @@
 <meta charset="UTF-8">
 <title>Dice Battle - Noir Edition</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<link rel="stylesheet" href="style.css">
+<style>
+    /* 기존 스타일 유지 */
+    body{background:#121212;color:#eee;font-family:"Noto Serif KR", serif;padding:20px;}
+    input, button{padding:8px;margin:4px;font-size:14px; background:#222; color:#fff; border:1px solid #444;}
+    button:hover{background:#333;}
+    button:disabled{opacity:.4;cursor:not-allowed;}
+    .hp{height:18px;background:#333;margin-bottom:10px; border-radius:3px; overflow:hidden;}
+    .hp>div{height:100%;transition:.3s;}
+    .status{font-size:14px;opacity:.85; height:20px;}
+    .noir-card{
+      display:none; /* 기본은 숨김 */
+      width:320px; background:#0f0f0f; border:2px solid #333; padding:18px;
+      color:#e0e0e0; box-shadow:0 0 25px rgba(0,0,0,0.9); margin-top:20px;
+    }
+    .noir-title{font-size:14px;letter-spacing:2px;color:#888;border-bottom:1px solid #333;padding-bottom:6px;margin-bottom:12px;}
+    .noir-footer{display:flex;justify-content:space-between;font-size:11px;color:#666;border-top:1px solid #333;padding-top:8px;margin-top:12px;}
+    #logs{max-height:150px; overflow-y:auto; font-size:13px; list-style:none; padding:0; border-left:2px solid #333; padding-left:10px;}
+</style>
 </head>
 <body>
 
@@ -17,36 +34,62 @@
 <hr>
 
 <div id="roomUI" style="display:none;">
-  <p>내 플레이어: <b id="me"></b></p>
-  <p>턴: <b id="turn"></b></p>
+    <p>내 플레이어: <b id="me"></b> (<span id="myNameDisplay"></span>)</p>
+    <p>턴: <b id="turn"></b></p>
 
-  <b id="nameA"></b>
-  <div class="status" id="statusA"></div>
-  <div class="hp"><div id="hpA"></div></div>
+    <b id="nameA"></b> <span id="statusA" class="status"></span>
+    <div class="hp"><div id="hpA"></div></div>
 
-  <b id="nameB"></b>
-  <div class="status" id="statusB"></div>
-  <div class="hp"><div id="hpB"></div></div>
+    <b id="nameB"></b> <span id="statusB" class="status"></span>
+    <div class="hp"><div id="hpB"></div></div>
 
-  <button id="attack">🎲 공격</button>
-  <button id="restart" style="display:none">재시작</button>
-  <button id="copySummary">📋 전투 결과 요약 복사</button>
+    <button id="attack">🎲 공격</button>
+    <button id="restart" style="display:none">재시작</button>
+    <button id="copySummary" style="display:none">📋 전투 결과 요약 복사</button>
 
-  <ul id="logs"></ul>
+    <ul id="logs"></ul>
 
-  <div id="noirCard" class="noir-card">
-    <div class="noir-title">BATTLE REPORT</div>
-    <div class="noir-body">
-      <p id="noirSummary"></p>
-      <p id="noirInjury"></p>
+    <div id="noirCard" class="noir-card">
+        <div class="noir-title">BATTLE REPORT</div>
+        <div class="noir-body">
+            <p id="noirSummary"></p>
+            <p id="noirInjury"></p>
+        </div>
+        <div class="noir-footer">
+            <span id="noirWinner"></span>
+            <span id="noirDate"></span>
+        </div>
     </div>
-    <div class="noir-footer">
-      <span id="noirWinner"></span>
-      <span id="noirDate"></span>
-    </div>
-  </div>
 </div>
 
-<script type="module" src="main.js"></script>
-</body>
-</html>
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-app.js";
+import { getDatabase, ref, get, set, update, onValue, onDisconnect } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-database.js";
+
+/* Firebase 설정 (직접 입력하세요) */
+const firebaseConfig = {
+  apiKey: "AIzaSyB5DBFCeHAy0ZhM3ITwu4MklaGqtqv9vhU",
+  authDomain: "dice-7fe9a.firebaseapp.com",
+  databaseURL: "https://dice-7fe9a-default-rtdb.firebaseio.com",
+  projectId: "dice-7fe9a"
+};
+
+const app = initializeApp(firebaseConfig);
+const db = getDatabase(app);
+
+let roomId="", mySide="", myName="";
+const BODY_PARTS=["머리","어깨","팔","손목","복부","옆구리","허벅지","종아리"];
+const hpColor = hp => hp > 30 ? "#2ecc71" : hp > 15 ? "#f1c40f" : "#e74c3c";
+
+// DOM 요소
+const roomInput=document.getElementById("roomInput");
+const createRoomBtn=document.getElementById("createRoom");
+const enterRoomBtn=document.getElementById("enterRoom");
+const roomUI=document.getElementById("roomUI");
+const turnEl=document.getElementById("turn");
+const logsEl=document.getElementById("logs");
+const btnAttack=document.getElementById("attack");
+
+// URL 파라미터 확인
+const urlParams = new URLSearchParams(window.location.search);
+if(urlParams.get('room')) roomInput.value = urlParams.get('room');
