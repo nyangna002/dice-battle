@@ -6,14 +6,12 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
 <style>
-/* 기본 스타일 */
 body{background:#121212;color:#eee;font-family:"Noto Serif KR", serif;padding:20px;}
 input, button{padding:8px;margin:4px;font-size:14px;}
 button:disabled{opacity:.4;cursor:not-allowed;}
 .hp{height:18px;background:#333;margin-bottom:10px;}
 .hp>div{height:100%;transition:.3s;}
 .status{font-size:14px;opacity:.85;}
-#copySummary{display:none;background:#2c3e50;padding:6px;margin-top:6px;cursor:pointer;}
 
 /* 카드 */
 .noir-card{
@@ -105,12 +103,10 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const db = getDatabase(app);
 
-/* 전역 상태 */
 let roomId="", mySide="", myName="";
 const BODY_PARTS=["머리","어깨","팔","손목","복부","옆구리","허벅지","종아리"];
-const hpColor=hp=>hp>20?"#2ecc71":hp>10?"#f1c40f":"#e74c3c";
+const hpColor=hp=>hp>30?"#2ecc71":hp>15?"#f1c40f":"#e74c3c"; // 50 체력 기준
 
-/* DOM */
 const roomInput=document.getElementById("roomInput");
 const createRoomBtn=document.getElementById("createRoom");
 const enterRoomBtn=document.getElementById("enterRoom");
@@ -143,18 +139,36 @@ async function joinRoom(roomId,myName){
     const roomRef=ref(db,`rooms/${roomId}`);
     const snap=await get(roomRef);
     if(!snap.exists()) return alert("방이 존재하지 않습니다");
-    const data=snap.val();
 
-    if(!data.players.A.name || data.players.A.name==="대기중"){
+    const data = snap.val();
+
+    // players 구조 없으면 초기화
+    if(!data.players){
+        await set(roomRef,{
+            players:{
+                A:{name:"대기중",hp:50,bleeding:false},
+                B:{name:"대기중",hp:50,bleeding:false}
+            },
+            turn:"A",
+            status:"waiting",
+            winner:null,
+            logs:["방 초기화"]
+        });
+    }
+
+    const updatedSnap = await get(roomRef);
+    const updatedData = updatedSnap.val();
+
+    if(!updatedData.players.A.name || updatedData.players.A.name==="대기중"){
         mySide="A";
         await update(roomRef,{"players/A/name":myName});
-    }else if(!data.players.B.name || data.players.B.name==="대기중"){
+    } else if(!updatedData.players.B.name || updatedData.players.B.name==="대기중"){
         mySide="B";
         await update(roomRef,{"players/B/name":myName});
-    }else return alert("이미 2명이 접속중입니다!");
+    } else return alert("이미 2명이 접속중입니다!");
 
-    if(data.status==="waiting"){
-        await update(roomRef,{status:"playing",logs:[...(data.logs||[]),"2번째 플레이어 입장, 전투 시작"]});
+    if(updatedData.status==="waiting"){
+        await update(roomRef,{status:"playing",logs:[...(updatedData.logs||[]),"2번째 플레이어 입장, 전투 시작"]});
     }
 
     localStorage.setItem("diceSide",mySide);
@@ -178,8 +192,8 @@ createRoomBtn.onclick=async()=>{
         mySide=Math.random()<0.5?"A":"B";
         await set(roomRef,{
             players:{
-                A: mySide==="A"?{name:myName,hp:30,bleeding:false}:{name:"대기중",hp:30,bleeding:false},
-                B: mySide==="B"?{name:myName,hp:30,bleeding:false}:{name:"대기중",hp:30,bleeding:false}
+                A: mySide==="A"?{name:myName,hp:50,bleeding:false}:{name:"대기중",hp:50,bleeding:false},
+                B: mySide==="B"?{name:myName,hp:50,bleeding:false}:{name:"대기중",hp:50,bleeding:false}
             },
             turn:"A",
             status:"waiting",
@@ -220,8 +234,8 @@ function initBattle(){
         statusA.innerText=s.players.A.bleeding?"🩸 출혈":"";
         statusB.innerText=s.players.B.bleeding?"🩸 출혈":"";
 
-        hpA.style.width=(s.players.A.hp/30*100)+"%"; hpA.style.background=hpColor(s.players.A.hp);
-        hpB.style.width=(s.players.B.hp/30*100)+"%"; hpB.style.background=hpColor(s.players.B.hp);
+        hpA.style.width=(s.players.A.hp/50*100)+"%"; hpA.style.background=hpColor(s.players.A.hp);
+        hpB.style.width=(s.players.B.hp/50*100)+"%"; hpB.style.background=hpColor(s.players.B.hp);
 
         btnAttack.disabled=s.status!=="playing"||s.turn!==mySide;
         btnRestart.style.display=s.status==="finished"?"block":"none";
@@ -281,8 +295,8 @@ btnRestart.onclick=async()=>{
     const roomRef=ref(db,`rooms/${roomId}`);
     await update(roomRef,{
         players:{
-            A:{name:nameA.innerText,hp:30,bleeding:false},
-            B:{name:nameB.innerText,hp:30,bleeding:false}
+            A:{name:nameA.innerText,hp:50,bleeding:false},
+            B:{name:nameB.innerText,hp:50,bleeding:false}
         },
         turn:"A",
         status:"playing",
