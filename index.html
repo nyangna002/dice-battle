@@ -2,74 +2,67 @@
 <html lang="ko">
 <head>
     <meta charset="UTF-8">
-    <title>Dice Battle - Noir Edition</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dice Battle - Mobile Optimized</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <style>
-        body { background:#121212; color:#eee; font-family:"Noto Serif KR", serif; padding:20px; display:flex; flex-direction:column; align-items:center; }
-        .container { max-width: 400px; width: 100%; }
-        input, button { padding:10px; margin:5px 0; font-size:14px; width: 100%; box-sizing: border-box; background:#1e1e1e; color:#fff; border:1px solid #333; cursor:pointer; }
-        button:hover { background:#222; border-color:#555; }
-        button:disabled { opacity:.3; cursor:not-allowed; }
-        .hp-bar { height:18px; background:#333; margin: 5px 0 15px 0; border-radius:3px; overflow:hidden; }
-        .hp-fill { height:100%; transition: width 0.5s ease-in-out; width: 100%; }
-        .status-text { font-size:13px; color:#888; margin-bottom: 2px; }
+        body { background:#121212; color:#eee; font-family:"Noto Serif KR", serif; padding:15px; margin:0; display:flex; flex-direction:column; align-items:center; touch-action: manipulation; }
+        .container { max-width: 400px; width: 100%; box-sizing: border-box; }
+        input, button { padding:14px; margin:6px 0; font-size:15px; width: 100%; box-sizing: border-box; background:#1e1e1e; color:#fff; border:1px solid #333; border-radius: 8px; }
+        button:active { background:#333; transform: scale(0.98); }
+        button:disabled { opacity:.3; cursor:not-allowed; transform: none; }
+        .hp-bar { height:20px; background:#333; margin: 8px 0 18px 0; border-radius:10px; overflow:hidden; border: 1px solid #444; }
+        .hp-fill { height:100%; transition: width 0.4s ease; width: 100%; }
+        .status-text { font-size:14px; color:#aaa; display: flex; justify-content: space-between; }
         #logs { 
-            background: #0a0a0a; border: 1px solid #222; padding: 10px; height: 150px; 
-            overflow-y: auto; font-size: 12px; list-style: none; margin-top: 20px;
+            background: #0a0a0a; border: 1px solid #222; padding: 12px; height: 180px; 
+            overflow-y: auto; font-size: 13px; list-style: none; margin-top: 15px; border-radius: 8px;
         }
-        #logs li { border-bottom: 1px solid #1a1a1a; padding: 4px 0; color: #bbb; }
+        #logs li { border-bottom: 1px solid #1a1a1a; padding: 6px 0; color: #ccc; line-height: 1.4; }
+        .room-badge { background: #f1c40f; color: #000; padding: 3px 10px; border-radius: 15px; font-weight: bold; font-size: 13px; }
         .noir-card {
-            display:none; background:#0f0f0f; border:2px solid #333; padding:18px;
-            color:#e0e0e0; box-shadow:0 0 25px rgba(0,0,0,0.9); margin-top:20px;
+            display:none; background:#000; border:1px solid #444; padding:20px;
+            color:#fff; box-shadow:0 10px 30px rgba(0,0,0,0.8); margin-top:20px; border-radius: 4px;
         }
-        .noir-title { font-size:12px; letter-spacing:2px; color:#555; border-bottom:1px solid #333; padding-bottom:5px; margin-bottom:10px; }
-        .noir-footer { display:flex; justify-content:space-between; font-size:10px; color:#444; border-top:1px solid #333; padding-top:8px; margin-top:10px; }
-        .room-badge { background: #333; color: #f1c40f; padding: 2px 8px; border-radius: 12px; font-size: 12px; margin-left: 5px; border: 1px solid #444; }
     </style>
 </head>
 <body>
 
 <div class="container">
-    <h2 style="text-align:center; letter-spacing:3px;">DICE BATTLE</h2>
+    <h2 style="text-align:center; letter-spacing:4px; margin: 20px 0;">DICE BATTLE</h2>
     
     <div id="setupUI">
-        <input id="roomInput" placeholder="방 번호를 입력하세요"/>
-        <button id="createRoom">새로운 전장 만들기</button>
-        <button id="enterRoom">기존 전장 입장하기</button>
+        <input id="roomInput" type="tel" placeholder="방 번호(숫자)를 입력하세요"/>
+        <button id="createRoom" style="background: #2c3e50;">새 전장 생성</button>
+        <button id="enterRoom">전장 참여</button>
     </div>
 
     <div id="gameUI" style="display:none;">
         <div style="text-align:center; margin-bottom:15px;">
-            <span style="color:#888; font-size:13px;">ROOM ID:</span>
-            <span id="roomDisplay" class="room-badge">0000</span>
+            <span class="room-badge" id="roomDisplay">ROOM ID</span>
         </div>
         
-        <p style="text-align:center; color:#888; margin:5px 0;">
-            접속: <b id="meDisplay"></b> (<span id="mySideDisplay"></span>)
+        <p style="text-align:center; color:#888; font-size:13px; margin:5px 0;">
+            <b id="meDisplay" style="color:#eee"></b> <span id="mySideDisplay"></span>
         </p>
-        <h3 id="turnDisplay" style="text-align:center; color:#f1c40f; margin-top:10px;">상대 대기 중...</h3>
+        <h3 id="turnDisplay" style="text-align:center; color:#f1c40f; height: 24px; margin: 15px 0;">대기 중...</h3>
 
-        <div>
-            <div class="status-text"><span id="nameA">플레이어 A</span> <span id="bleedingA"></span></div>
-            <div class="hp-bar"><div id="hpA" class="hp-fill"></div></div>
-        </div>
+        <div class="status-text"><span id="nameA">플레이어 A</span> <b id="bleedingA"></b></div>
+        <div class="hp-bar"><div id="hpA" class="hp-fill"></div></div>
 
-        <div>
-            <div class="status-text"><span id="nameB">플레이어 B</span> <span id="bleedingB"></span></div>
-            <div class="hp-bar"><div id="hpB" class="hp-fill"></div></div>
-        </div>
+        <div class="status-text"><span id="nameB">플레이어 B</span> <b id="bleedingB"></b></div>
+        <div class="hp-bar"><div id="hpB" class="hp-fill"></div></div>
 
-        <button id="attackBtn" disabled>🎲 주사위 굴리기 (공격)</button>
-        <button id="restartBtn" style="display:none; background:#2c3e50;">다시 시작</button>
-        <button id="copyBtn" style="display:none; background:#27ae60;">📋 전투 결과 요약 복사</button>
+        <button id="attackBtn" disabled style="background:#8e44ad; font-weight:bold; font-size: 18px;">🎲 공격하기</button>
+        <button id="restartBtn" style="display:none; background:#34495e;">전장 이탈 (초기화)</button>
+        <button id="copyBtn" style="display:none; background:#27ae60;">📋 결과 요약 복사</button>
 
         <ul id="logs"></ul>
 
         <div id="noirCard" class="noir-card">
-            <div class="noir-title">BATTLE REPORT</div>
-            <p id="noirSummary" style="font-size:14px; margin:0;"></p>
-            <p id="noirInjury" style="font-size:13px; color:#888; margin-top:5px;"></p>
-            <div class="noir-footer">
+            <div style="font-size:11px; color:#666; border-bottom:1px solid #333; padding-bottom:5px; margin-bottom:10px;">BATTLE REPORT</div>
+            <p id="noirSummary" style="font-size:15px; margin:0; line-height:1.6;"></p>
+            <p id="noirInjury" style="font-size:13px; color:#888; margin-top:8px;"></p>
+            <div style="display:flex; justify-content:space-between; font-size:11px; color:#444; margin-top:15px;">
                 <span id="noirWinner"></span>
                 <span id="noirDate"></span>
             </div>
@@ -81,7 +74,6 @@
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-app.js";
     import { getDatabase, ref, set, get, update, onValue } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-database.js";
 
-    // Firebase 설정
     const firebaseConfig = {
   apiKey: "AIzaSyB5DBFCeHAy0ZhM3ITwu4MklaGqtqv9vhU",
   authDomain: "dice-7fe9a.firebaseapp.com",
@@ -92,24 +84,24 @@
     const app = initializeApp(firebaseConfig);
     const db = getDatabase(app);
 
-    let roomId = "";
-    let mySide = ""; 
-    let myName = "";
-    const BODY_PARTS = ["머리", "심장", "어깨", "복부", "허벅지", "손목"];
+    let roomId = "", mySide = "", myName = "";
+    let isProcessing = false; // 중복 클릭 방지 플래그
 
     const setupUI = document.getElementById("setupUI");
     const gameUI = document.getElementById("gameUI");
     const logsEl = document.getElementById("logs");
 
+    const scrollLogs = () => { logsEl.scrollTop = logsEl.scrollHeight; };
+
     document.getElementById("createRoom").onclick = async () => {
         const id = document.getElementById("roomInput").value.trim();
         if(!id) return alert("방 번호를 입력하세요.");
-        myName = prompt("당신의 이름은?") || "무명객";
-        roomId = id;
-        mySide = "A";
+        myName = prompt("당신의 이름?") || "무명객";
+        roomId = id; mySide = "A";
+        
         await set(ref(db, `rooms/${roomId}`), {
             players: { A: { name: myName, hp: 50, bleeding: false }, B: { name: "대기 중...", hp: 50, bleeding: false } },
-            turn: "A", status: "waiting", logs: ["전장이 생성되었습니다."]
+            turn: "A", status: "waiting", logs: ["새로운 전장이 생성되었습니다."]
         });
         startGamelistener();
     };
@@ -120,9 +112,10 @@
         const roomRef = ref(db, `rooms/${id}`);
         const snap = await get(roomRef);
         if(!snap.exists()) return alert("방이 존재하지 않습니다.");
-        myName = prompt("당신의 이름은?") || "방문자";
-        roomId = id;
-        mySide = "B";
+        
+        myName = prompt("당신의 이름?") || "방문자";
+        roomId = id; mySide = "B";
+
         await update(ref(db, `rooms/${roomId}/players/B`), { name: myName });
         await update(roomRef, { status: "playing", logs: [...snap.val().logs, `${myName} 입장.`] });
         startGamelistener();
@@ -131,9 +124,10 @@
     function startGamelistener() {
         setupUI.style.display = "none";
         gameUI.style.display = "block";
-        document.getElementById("roomDisplay").innerText = roomId; // 방 번호 표시
+        document.getElementById("roomDisplay").innerText = "ROOM: " + roomId;
         document.getElementById("meDisplay").innerText = myName;
-        document.getElementById("mySideDisplay").innerText = mySide === 'A' ? 'HOST' : 'GUEST';
+        document.getElementById("mySideDisplay").innerText = mySide === 'A' ? '(호스트)' : '(게스트)';
+        
         onValue(ref(db, `rooms/${roomId}`), (snapshot) => {
             const data = snapshot.val();
             if(data) render(data);
@@ -144,15 +138,14 @@
         document.getElementById("nameA").innerText = s.players.A.name;
         document.getElementById("nameB").innerText = s.players.B.name;
         
-        const hpA = s.players.A.hp;
-        const hpB = s.players.B.hp;
+        const hpA = s.players.A.hp; const hpB = s.players.B.hp;
         document.getElementById("hpA").style.width = Math.max(0, (hpA / 50 * 100)) + "%";
         document.getElementById("hpB").style.width = Math.max(0, (hpB / 50 * 100)) + "%";
         document.getElementById("hpA").style.background = hpA > 15 ? "#2ecc71" : "#e74c3c";
         document.getElementById("hpB").style.background = hpB > 15 ? "#2ecc71" : "#e74c3c";
         
-        document.getElementById("bleedingA").innerText = s.players.A.bleeding ? "🩸" : "";
-        document.getElementById("bleedingB").innerText = s.players.B.bleeding ? "🩸" : "";
+        document.getElementById("bleedingA").innerText = s.players.A.bleeding ? "🩸출혈" : "";
+        document.getElementById("bleedingB").innerText = s.players.B.bleeding ? "🩸출혈" : "";
 
         if(s.status === "finished") {
             document.getElementById("turnDisplay").innerText = "전투 종료";
@@ -160,59 +153,75 @@
             document.getElementById("restartBtn").style.display = "block";
             showWinnerCard(s);
         } else {
-            document.getElementById("turnDisplay").innerText = s.turn === mySide ? "🔴 당신의 턴!" : "⚪ 상대의 턴...";
-            document.getElementById("attackBtn").disabled = (s.status === "waiting" || s.turn !== mySide);
+            const isMyTurn = s.turn === mySide && s.status === "playing";
+            document.getElementById("turnDisplay").innerText = isMyTurn ? "🔴 당신의 턴입니다!" : "⚪ 상대의 차례입니다";
+            document.getElementById("turnDisplay").style.color = isMyTurn ? "#f1c40f" : "#666";
+            document.getElementById("attackBtn").disabled = !isMyTurn || isProcessing;
             document.getElementById("noirCard").style.display = "none";
             document.getElementById("copyBtn").style.display = "none";
         }
 
         logsEl.innerHTML = "";
-        [...s.logs].reverse().forEach(log => {
+        (s.logs || []).forEach(log => {
             const li = document.createElement("li");
             li.innerText = log;
             logsEl.appendChild(li);
         });
+        scrollLogs();
     }
 
     document.getElementById("attackBtn").onclick = async () => {
-        const roomRef = ref(db, `rooms/${roomId}`);
-        const snap = await get(roomRef);
-        const s = snap.val();
-        const targetSide = mySide === "A" ? "B" : "A";
-        let logs = s.logs || [];
-        let updates = {};
-        let myHp = s.players[mySide].hp;
-        let targetHp = s.players[targetSide].hp;
+        if(isProcessing) return;
+        isProcessing = true;
+        document.getElementById("attackBtn").disabled = true;
 
-        if(s.players[mySide].bleeding) {
-            myHp -= 2;
-            logs.push(`[상태] ${myName} 출혈 데미지 (-2)`);
+        try {
+            const roomRef = ref(db, `rooms/${roomId}`);
+            const snap = await get(roomRef);
+            const s = snap.val();
+            
+            // 한 번 더 턴 확인 (보안)
+            if(s.turn !== mySide || s.status !== "playing") throw new Error("Not your turn");
+
+            const targetSide = mySide === "A" ? "B" : "A";
+            let updates = {};
+            let logs = s.logs || [];
+            let myHp = s.players[mySide].hp;
+            let targetHp = s.players[targetSide].hp;
+
+            if(s.players[mySide].bleeding) {
+                myHp -= 2;
+                logs.push(`[상태] ${myName} 출혈 피해 -2`);
+            }
+
+            const dice = Math.floor(Math.random() * 20) + 1;
+            targetHp -= dice;
+            logs.push(`[공격] ${myName}: ${dice} 피해!`);
+
+            if(dice >= 15 && Math.random() < 0.3) {
+                updates[`players/${targetSide}/bleeding`] = true;
+                logs.push(`[치명타] ${s.players[targetSide].name} 출혈 발생!`);
+            }
+
+            updates[`players/${mySide}/hp`] = myHp;
+            updates[`players/${targetSide}/hp`] = targetHp;
+            updates[`turn`] = targetSide; // 턴 교체
+
+            if(targetHp <= 0 || myHp <= 0) {
+                const winnerSide = targetHp <= 0 ? mySide : targetSide;
+                const loserSide = winnerSide === "A" ? "B" : "A";
+                updates[`status`] = "finished";
+                updates[`winner`] = winnerSide;
+                logs.push(`🏆 ${s.players[winnerSide].name} 승리!`);
+                logs.push(`💥 ${s.players[loserSide].name} 전투 불능.`);
+            }
+            updates[`logs`] = logs;
+            await update(roomRef, updates);
+        } catch (e) {
+            console.error(e);
+        } finally {
+            isProcessing = false;
         }
-
-        const dice = Math.floor(Math.random() * 20) + 1;
-        targetHp -= dice;
-        logs.push(`[공격] ${myName}: ${dice} 피해 부여!`);
-
-        if(dice >= 15 && Math.random() < 0.3) {
-            updates[`players/${targetSide}/bleeding`] = true;
-            logs.push(`[치명타] ${s.players[targetSide].name} 출혈 발생!`);
-        }
-
-        updates[`players/${mySide}/hp`] = myHp;
-        updates[`players/${targetSide}/hp`] = targetHp;
-        updates[`turn`] = targetSide;
-
-        if(targetHp <= 0 || myHp <= 0) {
-            const winnerSide = targetHp <= 0 ? mySide : targetSide;
-            const loserSide = winnerSide === "A" ? "B" : "A";
-            const injury = BODY_PARTS[Math.floor(Math.random() * BODY_PARTS.length)];
-            updates[`status`] = "finished";
-            updates[`winner`] = winnerSide;
-            logs.push(`🏆 ${s.players[winnerSide].name} 승리!`);
-            logs.push(`💥 ${s.players[loserSide].name} ${injury} 부상.`);
-        }
-        updates[`logs`] = logs;
-        await update(roomRef, updates);
     };
 
     function showWinnerCard(s) {
@@ -222,23 +231,27 @@
             const injuryLog = s.logs.find(l => l.includes("💥")) || "";
             document.getElementById("noirCard").style.display = "block";
             document.getElementById("copyBtn").style.display = "block";
-            document.getElementById("noirSummary").innerText = `${winner.name}, ${loser.name} 제압.`;
+            document.getElementById("noirSummary").innerText = `${winner.name}, ${loser.name} 제압 완료.`;
             document.getElementById("noirInjury").innerText = injuryLog;
             document.getElementById("noirWinner").innerText = `WINNER: ${winner.name}`;
             document.getElementById("noirDate").innerText = new Date().toLocaleDateString();
         }
     }
 
-    document.getElementById("restartBtn").onclick = () => location.reload();
+    document.getElementById("restartBtn").onclick = () => {
+        if(confirm("전장을 나갈까요? (방이 초기화될 수 있습니다)")) {
+            location.reload();
+        }
+    };
 
     document.getElementById("copyBtn").onclick = async () => {
         const text = `[BATTLE REPORT]\n${document.getElementById("noirSummary").innerText}\n${document.getElementById("noirInjury").innerText}`;
         try {
             await navigator.clipboard.writeText(text);
-            alert("복사 성공!");
+            alert("복사되었습니다.");
         } catch (e) {
             const t = document.createElement("textarea"); t.value = text; document.body.appendChild(t); t.select(); document.execCommand('copy'); document.body.removeChild(t);
-            alert("복사 성공!");
+            alert("복사되었습니다.");
         }
     };
 </script>
