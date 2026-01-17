@@ -39,7 +39,7 @@ button:disabled{opacity:.4;cursor:not-allowed;}
     padding:12px;
     font-size:13px;
     border:2px solid #333;
-    box-shadow:0 0 20px rgba(0,0,0,0.9);
+    box-shadow:0 0 25px rgba(0,0,0,0.9);
   }
   .noir-title{font-size:12px;}
   .noir-body p{font-size:12px;line-height:1.4;}
@@ -55,6 +55,7 @@ button:disabled{opacity:.4;cursor:not-allowed;}
 <h3>방 만들기 / 입장</h3>
 <input id="roomInput" placeholder="방 이름 입력"/>
 <button id="createRoom">방 만들기</button>
+<button id="enterRoom">입장</button>
 <p id="roomLink"></p>
 
 <hr>
@@ -112,6 +113,7 @@ const hpColor=hp=>hp>20?"#2ecc71":hp>10?"#f1c40f":"#e74c3c";
 /* DOM */
 const roomInput=document.getElementById("roomInput");
 const createRoomBtn=document.getElementById("createRoom");
+const enterRoomBtn=document.getElementById("enterRoom");
 const roomLink=document.getElementById("roomLink");
 const roomUI=document.getElementById("roomUI");
 
@@ -187,14 +189,7 @@ createRoomBtn.onclick=async()=>{
         alert("방 생성됨! URL 공유: ?room="+roomId);
         roomLink.innerText="URL: "+location.href+"?room="+roomId;
     }else{
-        const data=snap.val();
-        if(!data.players.A.name || data.players.A.name==="대기중"){
-            mySide="A"; await update(roomRef,{"players/A/name":myName});
-        }else if(!data.players.B.name || data.players.B.name==="대기중"){
-            mySide="B"; await update(roomRef,{"players/B/name":myName});
-        }else return alert("이미 2명이 접속중입니다!");
-
-        if(data.status==="waiting")await update(roomRef,{status:"playing",logs:[...(data.logs||[]),"2번째 플레이어 입장, 전투 시작"]});
+        alert("이미 존재하는 방입니다!");
     }
 
     localStorage.setItem("diceSide",mySide);
@@ -202,6 +197,14 @@ createRoomBtn.onclick=async()=>{
     meEl.innerText=mySide;
     roomUI.style.display="block";
     initBattle();
+};
+
+/* 방 입장 버튼 */
+enterRoomBtn.onclick=async()=>{
+    const inputRoom=roomInput.value.trim();
+    if(!inputRoom) return alert("방 이름 입력!");
+    myName=prompt("플레이어 이름 입력")||"Player";
+    joinRoom(inputRoom,myName);
 };
 
 /* 전투 초기화 */
@@ -297,7 +300,7 @@ btnSummary.onclick=async()=>{
     const loserSide=mySide==="A"?"B":"A";
     const loserName=s.players[loserSide].name;
     const attacks=s.logs.filter(l=>l.includes("⚔️")).length;
-    const injury=s.logs.find(l=>l.includes(""))||"";
+    const injury=s.logs.find(l=>l.includes("💥"))||"";
 
     const summary=`[전투 결과 보고]
 ${myName}, ${attacks}회의 교전을 통해 ${loserName} 제압 성공.
