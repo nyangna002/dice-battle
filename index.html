@@ -15,16 +15,30 @@ button:disabled{opacity:.4;cursor:not-allowed;}
 .hp>div{height:100%;transition:.3s;}
 .status{font-size:14px;opacity:.85;}
 #copySummary{display:none;background:#2c3e50;padding:6px;margin-top:6px;cursor:pointer;}
-.noir-card{width:320px;background:#0f0f0f;border:1px solid #333;padding:18px;color:#e0e0e0;box-shadow:0 0 25px rgba(0,0,0,0.9);margin-top:20px;}
-.noir-title{font-size:14px;letter-spacing:2px;color:#888;border-bottom:1px solid #333;padding-bottom:6px;margin-bottom:12px;}
-.noir-body p{font-size:14px;line-height:1.6;margin:0 0 10px 0;}
-.noir-footer{display:flex;justify-content:space-between;font-size:11px;color:#666;border-top:1px solid #333;padding-top:8px;margin-top:12px;}
-.noir-actions{margin-top:12px;text-align:center;}
-.noir-actions button{background:#1a1a1a;color:#ccc;border:1px solid #333;padding:6px 12px;cursor:pointer;font-size:12px;}
-.noir-actions button:hover{background:#222;}
-  /* 기존 스타일 유지 */
-body{background:#121212;color:#eee;font-family:"Noto Serif KR", serif;padding:20px;}
-input, button{padding:8px;margin:4px;font-size:14px;}
+/* 카드 기본 스타일 유지 */
+.noir-card{
+  width:320px; /* 데스크톱 기준 */
+  background:#0f0f0f;
+  border:1px solid #333;
+  padding:18px;
+  color:#e0e0e0;
+  box-shadow:0 0 25px rgba(0,0,0,0.9);
+  margin-top:20px;
+  box-sizing:border-box;
+}
+
+/* 모바일 최적화 */
+@media screen and (max-width:480px){
+  .noir-card{
+    width:80%;       /* 화면 폭의 90% */
+    padding:12px;    /* 내부 여백 축소 */
+    font-size:13px;  /* 글자 크기 조정 */
+  }
+  .noir-title{font-size:12px;}
+  .noir-body p{font-size:12px;line-height:1.4;}
+  .noir-footer{font-size:10px;}
+}
+
 
 /* 모바일 최적화 */
 @media screen and (max-width: 480px) {
