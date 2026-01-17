@@ -196,13 +196,17 @@ if (roomId) {
       s.turn !== mySide ||
       !s.players.A || !s.players.B;
 
-    logs.innerHTML = "";
-    s.logs.forEach(l => {
-      const li = document.createElement("li");
-      li.className = "log";
-      li.innerText = l;
-      logs.appendChild(li);
-    });
+ logs.innerHTML = "";
+
+const logList = s.logs || [];
+
+logList.forEach(l => {
+  const li = document.createElement("li");
+  li.className = "log";
+  li.innerText = l;
+  logs.appendChild(li);
+});
+
   });
 
   /* 공격 */
